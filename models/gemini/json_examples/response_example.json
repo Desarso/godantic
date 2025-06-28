@@ -1,0 +1,67 @@
+{
+    "message": [
+      {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "Yo"
+                }
+              ],
+              "role": "model"
+            }
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 1,
+          "totalTokenCount": 1,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1
+            }
+          ]
+        },
+        "modelVersion": "gemini-2.0-flash"
+      },
+
+
+
+      
+      {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "! What's up? What can I help you with today?\n"
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP"
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 1,
+          "candidatesTokenCount": 16,
+          "totalTokenCount": 17,
+          "promptTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 1
+            }
+          ],
+          "candidatesTokensDetails": [
+            {
+              "modality": "TEXT",
+              "tokenCount": 16
+            }
+          ]
+        },
+        "modelVersion": "gemini-2.0-flash"
+      }
+    ]
+  }
+  

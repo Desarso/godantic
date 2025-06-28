@@ -1,0 +1,1047 @@
+{
+    "result": {
+      "query": {
+        "original": "who is the president of the united states",
+        "show_strict_warning": false,
+        "is_navigational": true,
+        "is_news_breaking": false,
+        "spellcheck_off": true,
+        "country": "us",
+        "bad_results": false,
+        "should_fallback": false,
+        "postal_code": "",
+        "city": "",
+        "header_country": "",
+        "more_results_available": true,
+        "state": ""
+      },
+      "mixed": {
+        "type": "mixed",
+        "main": [
+          {
+            "type": "web",
+            "index": 0,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 1,
+            "all": false
+          },
+          {
+            "type": "news",
+            "all": true
+          },
+          {
+            "type": "web",
+            "index": 2,
+            "all": false
+          },
+          {
+            "type": "videos",
+            "all": true
+          },
+          {
+            "type": "web",
+            "index": 3,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 4,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 5,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 6,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 7,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 8,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 9,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 10,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 11,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 12,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 13,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 14,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 15,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 16,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 17,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 18,
+            "all": false
+          },
+          {
+            "type": "web",
+            "index": 19,
+            "all": false
+          }
+        ],
+        "top": [],
+        "side": []
+      },
+      "news": {
+        "type": "news",
+        "results": [
+          {
+            "title": "George Clooney Says ‘I Don’t Care’ If Trump Calls Me a ‘Fake Movie Actor’ Because ‘My Job Is Not to Please the President of the United States’",
+            "url": "https://variety.com/2025/film/news/george-clooney-donald-trump-fake-movie-actor-1236374004/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "George Clooney does not care about Donald Trump slamming him because \"it's not my job to please <strong>the</strong> <strong>President</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong>.\"",
+            "page_age": "2025-04-21T20:23:52",
+            "profile": {
+              "name": "Variety",
+              "url": "variety.com",
+              "long_name": "variety.com",
+              "img": "https://imgs.search.brave.com/1RwtihanwejN7b1a71OlY4lr6mg-fi1aOnCY-wSsejY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZjE3YTRkZDA2/NDI5ZjZlMmUyYzRi/YjBiYWE1OWQyNGYz/NDQxNzk3NmY1Yjgy/ZjFlNmM4YjZlODlh/Yjg4ZTk4Zi92YXJp/ZXR5LmNvbS/"
+            },
+            "family_friendly": true,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "variety.com",
+              "hostname": "variety.com",
+              "favicon": "https://imgs.search.brave.com/1RwtihanwejN7b1a71OlY4lr6mg-fi1aOnCY-wSsejY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZjE3YTRkZDA2/NDI5ZjZlMmUyYzRi/YjBiYWE1OWQyNGYz/NDQxNzk3NmY1Yjgy/ZjFlNmM4YjZlODlh/Yjg4ZTk4Zi92YXJp/ZXR5LmNvbS/",
+              "path": "› 2025  › film  › news  › george-clooney-donald-trump-fake-movie-actor-1236374004"
+            },
+            "breaking": false,
+            "is_live": false,
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/fTm3bK5yQt0T2NkLdkCt5dzuCBfqRJorHV1CTrOE9gE/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly92YXJp/ZXR5LmNvbS93cC1j/b250ZW50L3VwbG9h/ZHMvMjAyNS8wNC90/cnVtcC1jbG9vbmV5/LndlYnA_dz0xMDAw/JiMwMzg7aD01NjMm/IzAzODtjcm9wPTE",
+              "original": "https://variety.com/wp-content/uploads/2025/04/trump-clooney.webp?w=1000&h=563&crop=1"
+            },
+            "age": "9 hours ago"
+          },
+          {
+            "title": "Honoring the Memory of His Holiness Pope Francis – The White House",
+            "url": "https://www.whitehouse.gov/presidential-actions/2025/04/honoring-the-memory-of-his-holiness-pope-francis/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "By <strong>the</strong> <strong>President</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong> <strong>of</strong> America A Proclamation As a mark <strong>of</strong> respect for <strong>the</strong> memory <strong>of</strong> His Holiness Pope Francis, by <strong>the</strong> authority vested",
+            "page_age": "2025-04-21T17:45:03",
+            "profile": {
+              "name": "The White House",
+              "url": "www.whitehouse.gov",
+              "long_name": "whitehouse.gov",
+              "img": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv"
+            },
+            "family_friendly": true,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "whitehouse.gov",
+              "hostname": "www.whitehouse.gov",
+              "favicon": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv",
+              "path": "› presidential-actions  › 2025  › 04  › honoring-the-memory-of-his-holiness-pope-francis"
+            },
+            "breaking": false,
+            "is_live": false,
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/iCgdUhlTD2s0Vgk1wQhSZK32evfGG4Cm2XKJoWjm3P0/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/d2hpdGVob3VzZS5n/b3Yvd3AtY29udGVu/dC91cGxvYWRzLzIw/MjUvMDMvV0g0Ny1Q/cmVzaWRlbnRpYWwt/QWN0aW9ucy1Tb2Np/YWwtU2hhcmUtQ2Fy/ZC5qcGc",
+              "original": "https://www.whitehouse.gov/wp-content/uploads/2025/03/WH47-Presidential-Actions-Social-Share-Card.jpg"
+            },
+            "age": "11 hours ago"
+          },
+          {
+            "title": "Trump news updates: NYT defends report on Hegseth’s second Signal chat | Donald Trump News | Al Jazeera",
+            "url": "https://www.aljazeera.com/news/liveblog/2025/4/21/trump-live-news-us-president-hails-good-meetings-on-iran-ukraine",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "These were <strong>the</strong> updates from day 92 <strong>of</strong> <strong>United</strong> <strong>States</strong> <strong>President</strong> Donald Trump’s administration on Monday, April 21, 2025.",
+            "page_age": "2025-04-21T22:10:05",
+            "profile": {
+              "name": "Aljazeera",
+              "url": "www.aljazeera.com",
+              "long_name": "aljazeera.com",
+              "img": "https://imgs.search.brave.com/v6ofD8-UxOz25FG97pc7hKftp3PxiHPGAa1WXzanNHo/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjJhNzgzMzNk/Y2FkMjdkN2I5YWFh/YzcwZmE1Y2U4YWY2/MzU4ZTg5YTc3ZDZi/NzRhMDFkNzkzY2I4/NWYzMWNjOC93d3cu/YWxqYXplZXJhLmNv/bS8"
+            },
+            "family_friendly": true,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "aljazeera.com",
+              "hostname": "www.aljazeera.com",
+              "favicon": "https://imgs.search.brave.com/v6ofD8-UxOz25FG97pc7hKftp3PxiHPGAa1WXzanNHo/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjJhNzgzMzNk/Y2FkMjdkN2I5YWFh/YzcwZmE1Y2U4YWY2/MzU4ZTg5YTc3ZDZi/NzRhMDFkNzkzY2I4/NWYzMWNjOC93d3cu/YWxqYXplZXJhLmNv/bS8",
+              "path": "› news  › liveblog  › 2025  › 4  › 21  › trump-live-news-us-president-hails-good-meetings-on-iran-ukraine"
+            },
+            "breaking": false,
+            "is_live": false,
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/3UJPenkTxJSR1fS_A3TuaYEe6KXYmgQFWPaS7WnjQfA/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/YWxqYXplZXJhLmNv/bS93cC1jb250ZW50/L3VwbG9hZHMvMjAy/NS8wNC8yMDI1LTA0/LTIxVDIxMzA1N1pf/MTIyNDcyMTI1MV9S/QzJBMkVBVjlEUVBf/UlRSTUFEUF8zX1VT/QS1UUlVNUC1BUFBS/T1ZBTC0xNzQ1Mjcx/NzU3LmpwZz9yZXNp/emU9MTkyMCUyQzE0/NDA",
+              "original": "https://www.aljazeera.com/wp-content/uploads/2025/04/2025-04-21T213057Z_1224721251_RC2A2EAV9DQP_RTRMADP_3_USA-TRUMP-APPROVAL-1745271757.jpg?resize=1920%2C1440"
+            },
+            "age": "7 hours ago"
+          },
+          {
+            "title": "US: Trump says will 'pass' on Ukraine talks if too difficult",
+            "url": "https://www.dw.com/en/us-trump-says-will-pass-on-ukraine-talks-if-too-difficult/live-72285227",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "US <strong>President</strong> Donald Trump has threatened military action against Tehran if diplomacy fails, telling reporters on Friday: \"I'm for stopping Iran, very simply, from having a nuclear weapon. They can't have a nuclear weapon. I want Iran to be great and prosperous and terrific.\" Washington wants Tehran to halt production <strong>of</strong> highly enriched uranium, which it believes <strong>is</strong> aimed at building an atomic bomb. ... <strong>The</strong> <strong>United</strong> <strong>States</strong> ...",
+            "page_age": "2025-04-19T13:19:33",
+            "profile": {
+              "name": "Dw",
+              "url": "www.dw.com",
+              "long_name": "dw.com",
+              "img": "https://imgs.search.brave.com/xZhYJPqD9Ntb1goXRmIlGPu4JZBR3TUSZD8b4LyKCZU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODgzYTI5YzRh/ZGVkZTlkYWMzZjI5/MGY0OGQwOGQ2OGI0/NWQyZWVmYzFkOWJh/MjM4NWNkYTE1NTNl/MjI5MWY2Ny93d3cu/ZHcuY29tLw"
+            },
+            "family_friendly": true,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "dw.com",
+              "hostname": "www.dw.com",
+              "favicon": "https://imgs.search.brave.com/xZhYJPqD9Ntb1goXRmIlGPu4JZBR3TUSZD8b4LyKCZU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODgzYTI5YzRh/ZGVkZTlkYWMzZjI5/MGY0OGQwOGQ2OGI0/NWQyZWVmYzFkOWJh/MjM4NWNkYTE1NTNl/MjI5MWY2Ny93d3cu/ZHcuY29tLw",
+              "path": "› en  › us-trump-says-will-pass-on-ukraine-talks-if-too-difficult  › live-72285227"
+            },
+            "breaking": false,
+            "is_live": false,
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/JwzT_iDZD8VBvfCL2oK5jchPTwUQtcV5cqfM9WJ1HNw/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9zdGF0/aWMuZHcuY29tL2lt/YWdlLzcyMjg4MDQ1/XzYuanBn",
+              "original": "https://static.dw.com/image/72288045_6.jpg"
+            },
+            "age": "3 days ago"
+          }
+        ],
+        "mutated_by_goggles": false
+      },
+      "type": "search",
+      "videos": {
+        "type": "videos",
+        "results": [
+          {
+            "type": "video_result",
+            "url": "https://www.youtube.com/watch?v=vNzGsyfO7vA",
+            "title": "The United States can no longer continue with the policy of ...",
+            "description": "“The United States can no longer continue with the policy of unilateral economic surrender. WE HAVE TO TAKE CARE OF OUR PEOPLE, AND WE'RE GONNA TAKE CARE OF ...",
+            "age": "2 weeks ago",
+            "page_age": "2025-04-07T16:26:26",
+            "video": {
+              "duration": "01:02",
+              "creator": "The White House",
+              "publisher": "YouTube"
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/ZfEmHWNYpJtQIqKf5vb6h65mwy0j-uT0Sc6Lze8oNGY/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS92/TnpHc3lmTzd2QS9t/YXhyZXNkZWZhdWx0/LmpwZz9zcXA9LW9h/eW13RW1DSUFLRU5B/RjhxdUtxUU1hOEFF/Qi1BSC1DWUFDMEFX/S0Fnd0lBQkFCR0VR/Z1R5aGxNQTg9JmFt/cDtycz1BT240Q0xB/ZVNuTU96TVhWRlB0/bE40NWowaVpRWURI/LTF3",
+              "original": "https://i.ytimg.com/vi/vNzGsyfO7vA/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGEQgTyhlMA8=&rs=AOn4CLAeSnMOzMXVFPtlN45j0iZQYDH-1w"
+            }
+          },
+          {
+            "type": "video_result",
+            "url": "https://www.youtube.com/watch?v=0GrZfxzt2Jg",
+            "title": "President Trump Participates in a Visit with the 2024 World Series ...",
+            "description": "The White House",
+            "age": "2 weeks ago",
+            "page_age": "2025-04-07T16:00:30",
+            "video": {
+              "duration": "19:59",
+              "creator": "The White House",
+              "publisher": "YouTube"
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/X5s5zJ_gZ0G5PsMNfbNic-S0ICtKEmcVwUJgeJeXLHU/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS8w/R3JaZnh6dDJKZy9t/YXhyZXNkZWZhdWx0/LmpwZz9zcXA9LW9h/eW13RW1DSUFLRU5B/RjhxdUtxUU1hOEFF/Qi1BSC1DWUFDMEFX/S0Fnd0lBQkFCR0U0/Z1RpaGxNQTg9JmFt/cDtycz1BT240Q0xD/NkJnbW9hRFVDYXNH/NnUwV3REUjhsalBy/MXRB",
+              "original": "https://i.ytimg.com/vi/0GrZfxzt2Jg/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGE4gTihlMA8=&rs=AOn4CLC6BgmoaDUCasG6u0WtDR8ljPr1tA"
+            }
+          },
+          {
+            "type": "video_result",
+            "url": "https://www.youtube.com/watch?v=yiTFPN6SZsU",
+            "title": "President Trump Participates in the Make America Wealthy Again ...",
+            "description": "The White House",
+            "age": "3 weeks ago",
+            "page_age": "2025-04-02T10:09:51",
+            "video": {
+              "views": 53464,
+              "creator": "The White House",
+              "publisher": "YouTube"
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/UcyLB8AlauWC8xxqpUfnVXLMbM1UIZBSNtTqu96NSiQ/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS95/aVRGUE42U1pzVS9t/YXhyZXNkZWZhdWx0/LmpwZz92PTM",
+              "original": "https://i.ytimg.com/vi/yiTFPN6SZsU/maxresdefault.jpg?v=3"
+            }
+          },
+          {
+            "type": "video_result",
+            "url": "https://www.youtube.com/watch?v=O52KRHJEJT0",
+            "title": "US President Donald Trump On Tariff Talks With India | Trump Tariffs ...",
+            "description": "Amid global concerns over #Trump's reciprocal tariff, the US President revealed he had a very good talk' with India and expressed that things are 'going to w...",
+            "age": "3 weeks ago",
+            "page_age": "2025-03-29T12:50:18",
+            "video": {
+              "duration": "01:51",
+              "views": 8836,
+              "creator": "CNBC-TV18",
+              "publisher": "YouTube"
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/TAyIoCL6zYK1CB9UmcPiAhQ24yjkEsP6s1w3Tjxb1bk/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS9P/NTJLUkhKRUpUMC9t/YXhyZXNkZWZhdWx0/LmpwZw",
+              "original": "https://i.ytimg.com/vi/O52KRHJEJT0/maxresdefault.jpg"
+            }
+          },
+          {
+            "type": "video_result",
+            "url": "https://www.youtube.com/watch?v=gjHj4gwdv9E",
+            "title": "President Trump Participates in the White House Iftar Dinner - YouTube",
+            "description": "The White House",
+            "age": "4 weeks ago",
+            "page_age": "2025-03-28T00:27:49",
+            "video": {
+              "duration": "24:05",
+              "views": 11071,
+              "creator": "The White House",
+              "publisher": "YouTube"
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/R6sqy_CtNCEFgBZyuqVyEznLKJMGKkVJrFoDVbzA9K0/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS9n/akhqNGd3ZHY5RS9t/YXhyZXNkZWZhdWx0/LmpwZz9zcXA9LW9h/eW13RW1DSUFLRU5B/RjhxdUtxUU1hOEFF/Qi1BSC1DWUFDMEFX/S0Fnd0lBQkFCR0dV/Z1VTZ19NQTg9JmFt/cDtycz1BT240Q0xC/aG9FWXNyYXJUWGVa/RVo4WGlDbVVHaWNu/YU5n",
+              "original": "https://i.ytimg.com/vi/gjHj4gwdv9E/maxresdefault.jpg?sqp=-oaymwEmCIAKENAF8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgUSg_MA8=&rs=AOn4CLBhoEYsrarTXeZEZ8XiCmUGicnaNg"
+            }
+          },
+          {
+            "type": "video_result",
+            "url": "https://m.youtube.com/watch?v=BWV99NYNEx0",
+            "title": "\"It turned out that all we really needed was a new President.\" ...",
+            "description": "Share your videos with friends, family, and the world",
+            "video": {},
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "m.youtube.com",
+              "hostname": "m.youtube.com",
+              "favicon": "https://imgs.search.brave.com/p0B86IaQr1YuFWzlQTuEltmxPAh7UzF2DpyN8i96T6M/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZTExOWJhZDk1/ZTUxZWUwYmE3NTg0/N2QzZjQwZjZhMTE5/ZTc1NWY5MzMwYjll/OTJhNTM3ZjdmZTMw/MzdlM2EwNC9tLnlv/dXR1YmUuY29tLw",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/rXO5k2-GUat38FFPoEJDKAnedtXFO1v8_K8pa3MbRD8/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS9C/V1Y5OU5ZTkV4MC9o/cWRlZmF1bHQuanBn",
+              "original": "https://i.ytimg.com/vi/BWV99NYNEx0/hqdefault.jpg"
+            }
+          }
+        ],
+        "mutated_by_goggles": false
+      },
+      "web": {
+        "type": "search",
+        "results": [
+          {
+            "title": "The White House",
+            "url": "https://www.whitehouse.gov",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "First Lady OF THE UNITED STATES · The Cabinet · Of the 47th Administration · Executive Actions · News · <strong>President Trump</strong> is committed to lowering costs for all Americans, securing our borders, unleashing American energy dominance, restoring peace through strength, and making all Americans ...",
+            "page_age": "2025-01-20T17:00:26",
+            "profile": {
+              "name": "The White House",
+              "url": "https://www.whitehouse.gov",
+              "long_name": "whitehouse.gov",
+              "img": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "whitehouse.gov",
+              "hostname": "www.whitehouse.gov",
+              "favicon": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv",
+              "path": "  › home"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/lnetCH8GBmm5aCu0Bp7uMhJOChIHJWIUicZCn67Yd4w/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/d2hpdGVob3VzZS5n/b3Yvd3AtY29udGVu/dC91cGxvYWRzLzIw/MjUvMDQvbGliZXJh/dGlvbi1kYXktcG90/dXMuanBn",
+              "original": "https://www.whitehouse.gov/wp-content/uploads/2025/04/liberation-day-potus.jpg",
+              "logo": false
+            },
+            "age": "January 20, 2025",
+            "cluster_type": "generic",
+            "cluster": [
+              {
+                "title": "News",
+                "url": "https://www.whitehouse.gov/news/",
+                "is_source_local": false,
+                "is_source_both": false,
+                "description": "The latest transcripts, proclamations, executive orders, and press releases from The White House.",
+                "family_friendly": true
+              },
+              {
+                "title": "Contact",
+                "url": "https://www.whitehouse.gov/contact/",
+                "is_source_local": false,
+                "is_source_both": false,
+                "description": "Share your thoughts with <strong>President</strong> Donald J. Trump.",
+                "family_friendly": true
+              },
+              {
+                "title": "Administration",
+                "url": "https://www.whitehouse.gov/administration/",
+                "is_source_local": false,
+                "is_source_both": false,
+                "description": "First Lady Melania Trump is the wife of the 45th and 47th <strong>President</strong>, Donald J. Trump and the mother to their son, Barron Trump. She is the second First Lady born outside of <strong>the</strong> <strong>United</strong> <strong>States</strong>, and she is the only First Lady to become a naturalized <strong>United</strong> <strong>States</strong> citizen.",
+                "family_friendly": true
+              },
+              {
+                "title": "Presidential Actions",
+                "url": "https://www.whitehouse.gov/presidential-actions/",
+                "is_source_local": false,
+                "is_source_both": false,
+                "description": "<strong>President</strong> Donald J. Trump · The White House · Search · Presidential Actions · Restoring American Seafood Competitiveness · Presidential Actions, Executive Orders · April 17, 2025 · 250th Anniversary of the Battles of Lexington and Concord · Presidential Actions, Proclamations",
+                "family_friendly": true
+              }
+            ]
+          },
+          {
+            "title": "President of the United States - United States Mission to the United Nations",
+            "url": "https://usun.usmission.gov/our-leaders/the-president-of-the-united-states/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "<strong>Donald J. Trump</strong> serves as the 47th President of the United States. He also served as the 45th. Read the President’s full biography. ... We use cookies to make our website work better and improve your experience. By continuing to use the site, you agree to our privacy policy.",
+            "page_age": "2018-12-28T16:41:19",
+            "profile": {
+              "name": "Usmission",
+              "url": "https://usun.usmission.gov/our-leaders/the-president-of-the-united-states/",
+              "long_name": "usun.usmission.gov",
+              "img": "https://imgs.search.brave.com/YK9M-8O4u1moiUP-gGj7deZz2d5eXCdblkjZ5P5Og7g/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODE5OWIwYTc1/MjAwZmRkOTAzMjA4/YTUzM2Q2ZDQ2NDE2/Y2FiODUzZjZjMTZk/NzQzYWY3NWJmYWUx/YjE1YzQ4ZS91c3Vu/LnVzbWlzc2lvbi5n/b3Yv"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "usun.usmission.gov",
+              "hostname": "usun.usmission.gov",
+              "favicon": "https://imgs.search.brave.com/YK9M-8O4u1moiUP-gGj7deZz2d5eXCdblkjZ5P5Og7g/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODE5OWIwYTc1/MjAwZmRkOTAzMjA4/YTUzM2Q2ZDQ2NDE2/Y2FiODUzZjZjMTZk/NzQzYWY3NWJmYWUx/YjE1YzQ4ZS91c3Vu/LnVzbWlzc2lvbi5n/b3Yv",
+              "path": "  › home  › our leaders  › president of the united states"
+            },
+            "age": "December 28, 2018"
+          },
+          {
+            "title": "President of the United States - Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/President_of_the_United_States",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "In all, 45 individuals have served 47 presidencies spanning 60 four-year terms. <strong>Donald Trump</strong> is the 47th and current president since January 20, 2025. In July 1776, the Thirteen Colonies, represented at the Second Continental Congress in Philadelphia, unanimously adopted the United States ...",
+            "page_age": "2025-04-22T02:22:18",
+            "profile": {
+              "name": "Wikipedia",
+              "url": "https://en.wikipedia.org/wiki/President_of_the_United_States",
+              "long_name": "en.wikipedia.org",
+              "img": "https://imgs.search.brave.com/m6XxME4ek8DGIUcEPCqjRoDjf2e54EwL9pQzyzogLYk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjQwNGZhZWY0/ZTQ1YWUzYzQ3MDUw/MmMzMGY3NTQ0ZjNj/NDUwMDk5ZTI3MWRk/NWYyNTM4N2UwOTE0/NTI3ZDQzNy9lbi53/aWtpcGVkaWEub3Jn/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "en.wikipedia.org",
+              "hostname": "en.wikipedia.org",
+              "favicon": "https://imgs.search.brave.com/m6XxME4ek8DGIUcEPCqjRoDjf2e54EwL9pQzyzogLYk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjQwNGZhZWY0/ZTQ1YWUzYzQ3MDUw/MmMzMGY3NTQ0ZjNj/NDUwMDk5ZTI3MWRk/NWYyNTM4N2UwOTE0/NTI3ZDQzNy9lbi53/aWtpcGVkaWEub3Jn/Lw",
+              "path": "› wiki  › President_of_the_United_States"
+            },
+            "age": "3 hours ago"
+          },
+          {
+            "title": "The Trump Administration",
+            "url": "https://www.whitehouse.gov/administration/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "After a landslide election victory in 2024, President <strong>Donald J. Trump</strong> is returning to the White House to build upon his previous successes and use his mandate to reject the extremist policies of the radical left while providing tangible quality of life improvements for the American people.",
+            "page_age": "2025-01-20T17:00:26",
+            "profile": {
+              "name": "The White House",
+              "url": "https://www.whitehouse.gov/administration/",
+              "long_name": "whitehouse.gov",
+              "img": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "whitehouse.gov",
+              "hostname": "www.whitehouse.gov",
+              "favicon": "https://imgs.search.brave.com/e6eMgBSwnkEjsAE_qoI9Vl4260waVBTKICayLay6wn8/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjlkYzVmY2Nm/NjUxMWYyNWVjMzg5/N2JhMjYxNGQ2NzQ4/NjFiYWRkOWZlZjQ4/MjQ5MjIxNGVlMWYz/YmNmMjZhNC93d3cu/d2hpdGVob3VzZS5n/b3Yv",
+              "path": "  › home  › administration"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/5lJIoCPM6HxzrakslwBBXC1-2jtjKa4_Su0uDl2gaHw/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/d2hpdGVob3VzZS5n/b3Yvd3AtY29udGVu/dC91cGxvYWRzLzIw/MjUvMDEvRG9uYWxk/LUotVHJ1bXAuanBn",
+              "original": "https://www.whitehouse.gov/wp-content/uploads/2025/01/Donald-J-Trump.jpg",
+              "logo": false
+            },
+            "age": "January 20, 2025"
+          },
+          {
+            "title": "Presidents, vice presidents, and first ladies | USAGov",
+            "url": "https://www.usa.gov/presidents",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "The 47th and current president of the United States is <strong>Donald John Trump</strong>.",
+            "page_age": "2025-03-05T00:00:00",
+            "profile": {
+              "name": "Usa",
+              "url": "https://www.usa.gov/presidents",
+              "long_name": "usa.gov",
+              "img": "https://imgs.search.brave.com/9erLdz95NY1KdITJp_28u0w3d5_1KvSV_Na571BnIFw/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODczMjMxODg4/ZTc3MjdlYWJiNmVj/NGEwZTIzM2ZmNTY2/YmM2YjliNGVkMTc1/ZmIxNTE4YmU2N2Y5/N2FiMjA3ZS93d3cu/dXNhLmdvdi8"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "faq",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "usa.gov",
+              "hostname": "www.usa.gov",
+              "favicon": "https://imgs.search.brave.com/9erLdz95NY1KdITJp_28u0w3d5_1KvSV_Na571BnIFw/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvODczMjMxODg4/ZTc3MjdlYWJiNmVj/NGEwZTIzM2ZmNTY2/YmM2YjliNGVkMTc1/ZmIxNTE4YmU2N2Y5/N2FiMjA3ZS93d3cu/dXNhLmdvdi8",
+              "path": "  › home  › the u.s. and its government  › u.s. facts and figures  › presidents, vice presidents, and first ladies"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/_0g0767cJFlh0S5u-I7OOxLj3aSkjaz1vzlzM5z5BZw/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/dXNhLmdvdi90aGVt/ZXMvY3VzdG9tL3Vz/YWdvdi9pbWFnZXMv/TG9nb19VU0FHb3Yu/cG5n",
+              "original": "https://www.usa.gov/themes/custom/usagov/images/Logo_USAGov.png",
+              "logo": false
+            },
+            "age": "March 5, 2025"
+          },
+          {
+            "title": "List of presidents of the United States - Wikipedia",
+            "url": "https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "<strong>The</strong> <strong>president</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong> <strong>is</strong> <strong>the</strong> head <strong>of</strong> <strong>state</strong> and head of government of <strong>the</strong> <strong>United</strong> <strong>States</strong>, indirectly elected to a four-year term via the Electoral College. Under the U.S. Constitution, the officeholder leads the executive branch of the federal government and is the commander-in-chief ...",
+            "page_age": "2025-04-16T01:21:06",
+            "profile": {
+              "name": "Wikipedia",
+              "url": "https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States",
+              "long_name": "en.wikipedia.org",
+              "img": "https://imgs.search.brave.com/m6XxME4ek8DGIUcEPCqjRoDjf2e54EwL9pQzyzogLYk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjQwNGZhZWY0/ZTQ1YWUzYzQ3MDUw/MmMzMGY3NTQ0ZjNj/NDUwMDk5ZTI3MWRk/NWYyNTM4N2UwOTE0/NTI3ZDQzNy9lbi53/aWtpcGVkaWEub3Jn/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "deep_results": {
+              "buttons": [
+                {
+                  "type": "button_result",
+                  "title": "Presidents",
+                  "url": "https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States#Presidents"
+                },
+                {
+                  "type": "button_result",
+                  "title": "Works cited",
+                  "url": "https://en.wikipedia.org/wiki/List_of_presidents_of_the_United_States#Works_cited"
+                }
+              ]
+            },
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "en.wikipedia.org",
+              "hostname": "en.wikipedia.org",
+              "favicon": "https://imgs.search.brave.com/m6XxME4ek8DGIUcEPCqjRoDjf2e54EwL9pQzyzogLYk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjQwNGZhZWY0/ZTQ1YWUzYzQ3MDUw/MmMzMGY3NTQ0ZjNj/NDUwMDk5ZTI3MWRk/NWYyNTM4N2UwOTE0/NTI3ZDQzNy9lbi53/aWtpcGVkaWEub3Jn/Lw",
+              "path": "› wiki  › List_of_presidents_of_the_United_States"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/tOvUbQsGn68Znh-Ar7Z4yaOlqDPelibJ0rbZXRI8wPk/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly91cGxv/YWQud2lraW1lZGlh/Lm9yZy93aWtpcGVk/aWEvY29tbW9ucy9l/L2UxL1doaXRlX0hv/dXNlX1dhc2hpbmd0/b24uSlBH",
+              "original": "https://upload.wikimedia.org/wikipedia/commons/e/e1/White_House_Washington.JPG",
+              "logo": false
+            },
+            "age": "1 week ago"
+          },
+          {
+            "title": "Presidents of the United States of America",
+            "url": "https://www.ohiosos.gov/elections/election-results-and-data/historical-election-comparisons/presidents-of-the-united-states-of-america/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "An official <strong>State</strong> <strong>of</strong> Ohio government website. Here's how you know · The site is secure.",
+            "profile": {
+              "name": "Ohiosos",
+              "url": "https://www.ohiosos.gov/elections/election-results-and-data/historical-election-comparisons/presidents-of-the-united-states-of-america/",
+              "long_name": "ohiosos.gov",
+              "img": "https://imgs.search.brave.com/gJEzX6pfHAeL31S8ERGtav6NJxXFuSBU2lircxtLlxQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjliNzlhNzk0/YjY1NmIyMDE4NjRi/ODEwN2IyYmZkMWJi/NDBmNDU1YWU3MDc4/MmEzNmZlMTc2YTBl/OWViNTlkNi93d3cu/b2hpb3Nvcy5nb3Yv"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "ohiosos.gov",
+              "hostname": "www.ohiosos.gov",
+              "favicon": "https://imgs.search.brave.com/gJEzX6pfHAeL31S8ERGtav6NJxXFuSBU2lircxtLlxQ/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvYjliNzlhNzk0/YjY1NmIyMDE4NjRi/ODEwN2IyYmZkMWJi/NDBmNDU1YWU3MDc4/MmEzNmZlMTc2YTBl/OWViNTlkNi93d3cu/b2hpb3Nvcy5nb3Yv",
+              "path": "› elections  › election-results-and-data  › historical-election-comparisons  › presidents-of-the-united-states-of-america"
+            }
+          },
+          {
+            "title": "President Joe Biden",
+            "url": "https://www.facebook.com/POTUS/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "President <strong>Joe Biden</strong>. 10M likes · 88,858 talking about this. 46th President of the United States, husband to @FLOTUS, proud father and pop. Text me (302) 404-0880",
+            "profile": {
+              "name": "Facebook",
+              "url": "https://www.facebook.com/POTUS/",
+              "long_name": "facebook.com",
+              "img": "https://imgs.search.brave.com/UPSLokJBKWPdNzHbqH5o3CgD13zMvR3pUTn8bk7hmPM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOWM3NjZkMmE4/MTU1MTk4ZDU5YzU3/NjUxY2ExZTdjNWQx/NjJlNTY1Y2VlODM4/MmRmMDgzZDBiMmI3/YzU4NmU4ZS93d3cu/ZmFjZWJvb2suY29t/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "facebook.com",
+              "hostname": "www.facebook.com",
+              "favicon": "https://imgs.search.brave.com/UPSLokJBKWPdNzHbqH5o3CgD13zMvR3pUTn8bk7hmPM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOWM3NjZkMmE4/MTU1MTk4ZDU5YzU3/NjUxY2ExZTdjNWQx/NjJlNTY1Y2VlODM4/MmRmMDgzZDBiMmI3/YzU4NmU4ZS93d3cu/ZmFjZWJvb2suY29t/Lw",
+              "path": "› POTUS"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/Fb5ovZNE5u4XKXTVNY2xKfMz5HSOieZ0sKqR4-9P600/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9zY29u/dGVudC1kZW4yLTEu/eHguZmJjZG4ubmV0/L3YvdDM5LjMwODA4/LTEvMjcxODcyOTI2/XzM1NjY0OTQyOTc5/NTM2MF82OTgwNDQ4/NjIyOTAwNTg5ODg2/X24uanBnP3N0cD1k/c3QtanBnX3A3MjB4/NzIwJmFtcDtfbmNf/Y2F0PTEmYW1wO2Nj/Yj0xLTcmYW1wO19u/Y19zaWQ9NWYyMDQ4/JmFtcDtfbmNfb2hj/PWt6b3kxSkt5clR3/UTdrTnZnRjh3VXZp/JmFtcDtfbmNfaHQ9/c2NvbnRlbnQtZGVu/Mi0xLnh4JmFtcDtv/aD0wMF9BWUJydzg1/bjZkTXZNUS1zR1Vt/TnV6ajBGajZteDlh/TTZqT2dFbVBjYXdR/aUVBJmFtcDtvZT02/NjRBMzM3Qw",
+              "original": "https://scontent-den2-1.xx.fbcdn.net/v/t39.30808-1/271872926_356649429795360_6980448622900589886_n.jpg?stp=dst-jpg_p720x720&_nc_cat=1&ccb=1-7&_nc_sid=5f2048&_nc_ohc=kzoy1JKyrTwQ7kNvgF8wUvi&_nc_ht=scontent-den2-1.xx&oh=00_AYBrw85n6dMvMQ-sGUmNuzj0Fj6mx9aM6jOgEmPcawQiEA&oe=664A337C",
+              "logo": false
+            }
+          },
+          {
+            "title": "Donald J. Trump – The White House",
+            "url": "https://trumpwhitehouse.archives.gov/people/donald-j-trump/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "... <strong>Donald J. Trump</strong> defines the American success story. Throughout his life he has continually set the standards of business and entrepreneurial excellence, especially in real estate, sports, and entertainment. Mr. Trump built on his success in private life when he entered into politics and ...",
+            "profile": {
+              "name": "Archives",
+              "url": "https://trumpwhitehouse.archives.gov/people/donald-j-trump/",
+              "long_name": "trumpwhitehouse.archives.gov",
+              "img": "https://imgs.search.brave.com/T5CTUt-O8Vw7dNh7g6gho2GN4-8HoT3wlp-u6TgyqwU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMGU1OGQxYmI3/NTc1MTI3OTU3OTNl/ZTk3YTQ1ZGEwYWQ2/Y2M2NzFmMDY5YjVj/MDY5OTQ3MjY4NmFj/ZmYzYWJkMi90cnVt/cHdoaXRlaG91c2Uu/YXJjaGl2ZXMuZ292/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "trumpwhitehouse.archives.gov",
+              "hostname": "trumpwhitehouse.archives.gov",
+              "favicon": "https://imgs.search.brave.com/T5CTUt-O8Vw7dNh7g6gho2GN4-8HoT3wlp-u6TgyqwU/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMGU1OGQxYmI3/NTc1MTI3OTU3OTNl/ZTk3YTQ1ZGEwYWQ2/Y2M2NzFmMDY5YjVj/MDY5OTQ3MjY4NmFj/ZmYzYWJkMi90cnVt/cHdoaXRlaG91c2Uu/YXJjaGl2ZXMuZ292/Lw",
+              "path": "› people  › donald-j-trump"
+            }
+          },
+          {
+            "title": "President Joe Biden (@potus) • Instagram photos and videos",
+            "url": "https://www.instagram.com/potus/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "19M Followers, 5 Following, 4,093 Posts - See Instagram photos and videos from President <strong>Joe Biden</strong> (@potus)",
+            "profile": {
+              "name": "Instagram",
+              "url": "https://www.instagram.com/potus/",
+              "long_name": "instagram.com",
+              "img": "https://imgs.search.brave.com/kgdtgqUZQdNYzMKhbVXC5vthlFLPMJ0IOJAdFjEIRuk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2RiYmJiZDA4/NTBkNWQ0ZmQ3NDE5/OGUxOGI4NzE5ZDI0/Zjk0M2ExMDkzZmJm/ODA0MmJiMzkwZjMy/ZDM4YWVkOS93d3cu/aW5zdGFncmFtLmNv/bS8"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "instagram.com",
+              "hostname": "www.instagram.com",
+              "favicon": "https://imgs.search.brave.com/kgdtgqUZQdNYzMKhbVXC5vthlFLPMJ0IOJAdFjEIRuk/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvN2RiYmJiZDA4/NTBkNWQ0ZmQ3NDE5/OGUxOGI4NzE5ZDI0/Zjk0M2ExMDkzZmJm/ODA0MmJiMzkwZjMy/ZDM4YWVkOS93d3cu/aW5zdGFncmFtLmNv/bS8",
+              "path": "› potus"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/Sb4Z2i4iCbTNH48N2I5olIJgP05hdNUkg8u4n9J_O3s/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9zY29u/dGVudC1kZnc1LTIu/Y2RuaW5zdGFncmFt/LmNvbS92L3Q1MS4y/ODg1LTE5LzE3MDE2/NjgwMV8zNTQ1Njk2/NzkyOTM2NTVfNjEw/NjAyOTgxODgzNDA5/MTY2MF9uLmpwZz9z/dHA9ZHN0LWpwZ19z/MTAweDEwMCZhbXA7/X25jX2NhdD0xJmFt/cDtjY2I9MS03JmFt/cDtfbmNfc2lkPTNm/ZDA2ZiZhbXA7X25j/X29oYz1lUi1Fa1J2/RDRhUVE3a052Z0VJ/clZ4YSZhbXA7X25j/X2h0PXNjb250ZW50/LWRmdzUtMi5jZG5p/bnN0YWdyYW0uY29t/JmFtcDtvaD0wMF9B/WUFrdWF4YktPcENR/MW4yNjJlbC1iSy0t/aF9mVDNTYWhlVEw2/U1FZSGZ0d0tRJmFt/cDtvZT02NjgzOUIw/Rg",
+              "original": "https://scontent-dfw5-2.cdninstagram.com/v/t51.2885-19/170166801_354569679293655_6106029818834091660_n.jpg?stp=dst-jpg_s100x100&_nc_cat=1&ccb=1-7&_nc_sid=3fd06f&_nc_ohc=eR-EkRvD4aQQ7kNvgEIrVxa&_nc_ht=scontent-dfw5-2.cdninstagram.com&oh=00_AYAkuaxbKOpCQ1n262el-bK--h_fT3SaheTL6SQYHftwKQ&oe=66839B0F",
+              "logo": false
+            }
+          },
+          {
+            "title": "Donald J. Trump: America's new president - U.S. Embassy in Montenegro",
+            "url": "https://me.usembassy.gov/donald-j-trump-americas-new-president/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "President <strong>Donald J. Trump</strong> is returning to the White House as the 47th president to build upon his previous successes, unleash the American economy, and afford all Americans the opportunity to pursue their versions of the American dream.",
+            "page_age": "2025-01-23T11:06:42",
+            "profile": {
+              "name": "Usembassy",
+              "url": "https://me.usembassy.gov/donald-j-trump-americas-new-president/",
+              "long_name": "me.usembassy.gov",
+              "img": "https://imgs.search.brave.com/bU1s2mEruNpdtnTKIJoPm5-XPU3yoOlQqI1qHTzGjeM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTY0MTc4OTRh/NWUyMWMxNjdkZjVk/MmMwNmI3MjdkODc0/MjQ3OTExOTI2YzE0/NDdmNzU0ZGE4N2Zi/NGI1M2JjZS9tZS51/c2VtYmFzc3kuZ292/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "me.usembassy.gov",
+              "hostname": "me.usembassy.gov",
+              "favicon": "https://imgs.search.brave.com/bU1s2mEruNpdtnTKIJoPm5-XPU3yoOlQqI1qHTzGjeM/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTY0MTc4OTRh/NWUyMWMxNjdkZjVk/MmMwNmI3MjdkODc0/MjQ3OTExOTI2YzE0/NDdmNzU0ZGE4N2Zi/NGI1M2JjZS9tZS51/c2VtYmFzc3kuZ292/Lw",
+              "path": "  › naslovna  › news & events  › donald j. trump: america’s new president"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/IdWnviicPgZ-VlP4ayM7Riez2cs7ENoGJFVdq5yFNDg/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9tZS51/c2VtYmFzc3kuZ292/L3dwLWNvbnRlbnQv/dXBsb2Fkcy9zaXRl/cy8yNTAvdHJ1bXBf/cHJvZmlsZV9zbWl0/aHNvbmlhbi0uanBn",
+              "original": "https://me.usembassy.gov/wp-content/uploads/sites/250/trump_profile_smithsonian-.jpg",
+              "logo": false
+            },
+            "age": "January 23, 2025"
+          },
+          {
+            "title": "Joe Biden's Path to the United States Presidency | Britannica",
+            "url": "https://www.britannica.com/video/who-is-President-Joe-Biden/-261012",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "Learn more about the life and career of <strong>Joe Biden</strong>, the 46th president of the United States.",
+            "page_age": "2024-05-07T11:17:08",
+            "profile": {
+              "name": "Britannica",
+              "url": "https://www.britannica.com/video/who-is-President-Joe-Biden/-261012",
+              "long_name": "britannica.com",
+              "img": "https://imgs.search.brave.com/jMDHLEzOKBVbwQ7-d4wBSobNay75CY4fiZkxDsHYBkA/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNzJmYzgxOWRk/Y2FhNWI2MzQzMjQ4/MWVhZDZhNGY3ZjY0/MDgxZTM3YWU5MzYz/NGU2MzM3Y2Y2YTYz/M2IyM2Y0NC93d3cu/YnJpdGFubmljYS5j/b20v"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "video",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "britannica.com",
+              "hostname": "www.britannica.com",
+              "favicon": "https://imgs.search.brave.com/jMDHLEzOKBVbwQ7-d4wBSobNay75CY4fiZkxDsHYBkA/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNzJmYzgxOWRk/Y2FhNWI2MzQzMjQ4/MWVhZDZhNGY3ZjY0/MDgxZTM3YWU5MzYz/NGU2MzM3Y2Y2YTYz/M2IyM2Y0NC93d3cu/YnJpdGFubmljYS5j/b20v",
+              "path": "› video  › who-is-President-Joe-Biden  › -261012"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/Q-YEHEE9Y30hw8PVhjBoxi0zGGe4vgcJQJ68N_tHbdc/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9jZG4u/YnJpdGFubmljYS5j/b20vNjYvMjI2NzY2/LTEzOC0yMzVFRkQ5/Mi93aG8taXMtUHJl/c2lkZW50LUpvZS1C/aWRlbi5qcGc",
+              "original": "https://cdn.britannica.com/66/226766-138-235EFD92/who-is-President-Joe-Biden.jpg",
+              "logo": false
+            },
+            "age": "May 7, 2024"
+          },
+          {
+            "title": "U.S. Presidents | Miller Center",
+            "url": "https://millercenter.org/president",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "It is the desire of the good people of the whole country that sectionalism as a factor in our politics should disappear. ... Rutherford B. Hayes ... There can be no permanent disfranchised peasantry in <strong>the</strong> <strong>United</strong> <strong>States</strong>.",
+            "profile": {
+              "name": "Miller Center",
+              "url": "https://millercenter.org/president",
+              "long_name": "millercenter.org",
+              "img": "https://imgs.search.brave.com/kPy1AVPKqtoxjA3-ESCUQhPJuX0HPU7q4Re6TrQFn4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDk4MTRiYjBk/NmE5MzUwZDA2NjE3/OTE0OWZhNDA0Yzgy/NTA3ZmI3NGI5Y2Vl/ODljYWRhYjlkZmVm/OWZiNjc5Ni9taWxs/ZXJjZW50ZXIub3Jn/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "millercenter.org",
+              "hostname": "millercenter.org",
+              "favicon": "https://imgs.search.brave.com/kPy1AVPKqtoxjA3-ESCUQhPJuX0HPU7q4Re6TrQFn4I/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvZDk4MTRiYjBk/NmE5MzUwZDA2NjE3/OTE0OWZhNDA0Yzgy/NTA3ZmI3NGI5Y2Vl/ODljYWRhYjlkZmVm/OWZiNjc5Ni9taWxs/ZXJjZW50ZXIub3Jn/Lw",
+              "path": "› president"
+            }
+          },
+          {
+            "title": "The Presidents - White House Historical Association",
+            "url": "https://www.whitehousehistory.org/collections/president-biographies",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "On January 20, 1977, Jimmy Carter was inaugurated as the thirty-ninth <strong>president</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong>.",
+            "profile": {
+              "name": "WHHA",
+              "url": "https://www.whitehousehistory.org/collections/president-biographies",
+              "long_name": "whitehousehistory.org",
+              "img": "https://imgs.search.brave.com/obTRceVEP6NO9e4DbkycdpGXD-BqtU-_nngXHCYPIFY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMTk3N2M3YzI0/MTE2ODE3ZGRiZTA0/OGQ5NTFmYTM1Y2M4/NmVhZWJhMmVmODIx/ZGMwZTE0NzVhZGU1/OGM0YjNlYS93d3cu/d2hpdGVob3VzZWhp/c3Rvcnkub3JnLw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "whitehousehistory.org",
+              "hostname": "www.whitehousehistory.org",
+              "favicon": "https://imgs.search.brave.com/obTRceVEP6NO9e4DbkycdpGXD-BqtU-_nngXHCYPIFY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMTk3N2M3YzI0/MTE2ODE3ZGRiZTA0/OGQ5NTFmYTM1Y2M4/NmVhZWJhMmVmODIx/ZGMwZTE0NzVhZGU1/OGM0YjNlYS93d3cu/d2hpdGVob3VzZWhp/c3Rvcnkub3JnLw",
+              "path": "› collections  › president-biographies"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/8DA0wSA6oEcXXwJxbqC56_hArtsQBAzM6_OL4lQP7gQ/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9kMXk4/MjJxaHE1NWc2LmNs/b3VkZnJvbnQubmV0/L3RodW1ibmFpbHMv/Y29sbC1wcmVzaWRl/bnRzLXRodW1iLmpw/Zw",
+              "original": "https://d1y822qhq55g6.cloudfront.net/thumbnails/coll-presidents-thumb.jpg",
+              "logo": false
+            }
+          },
+          {
+            "title": "President of the United States - U.S. Embassy & Consulates in India",
+            "url": "https://in.usembassy.gov/our-relationship/the-president-of-the-united-states/",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "Donald J. Trump serves as the 47th <strong>President</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong>. He also served as the 45th. Read <strong>the</strong> <strong>President</strong>’s full biography. ... We use cookies to make our website work better and improve your experience. By continuing to use the site, you agree to our privacy policy. ... The technical storage or access is ...",
+            "page_age": "2017-03-19T15:56:44",
+            "profile": {
+              "name": "Usembassy",
+              "url": "https://in.usembassy.gov/our-relationship/the-president-of-the-united-states/",
+              "long_name": "in.usembassy.gov",
+              "img": "https://imgs.search.brave.com/z_OBqy3vemfEBagEPUF8Y5yxmyIewkDT8GQCXC2MFcE/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNWViZjI3NTA2/M2U0MWYzMGIwOTk2/NDhlMTYyOWNmMWEz/MjJiNjFiZTgwMzJj/MjIxZjdjMGFjZTA3/ZDJhZDZkYi9pbi51/c2VtYmFzc3kuZ292/Lw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "in.usembassy.gov",
+              "hostname": "in.usembassy.gov",
+              "favicon": "https://imgs.search.brave.com/z_OBqy3vemfEBagEPUF8Y5yxmyIewkDT8GQCXC2MFcE/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNWViZjI3NTA2/M2U0MWYzMGIwOTk2/NDhlMTYyOWNmMWEz/MjJiNjFiZTgwMzJj/MjIxZjdjMGFjZTA3/ZDJhZDZkYi9pbi51/c2VtYmFzc3kuZ292/Lw",
+              "path": "  › मुखपृष्ठ  › our relationship  › president of the united states"
+            },
+            "age": "March 19, 2017"
+          },
+          {
+            "title": "Chronological List of Presidents, First Spouses, and Vice Presidents of the United States - Presidents of the United States: Selected Images - Research Guides at Library of Congress",
+            "url": "https://guides.loc.gov/presidents-portraits/chronological",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "This guide provides portraits of each American <strong>president</strong> from the Prints & Photographs Division collections at the Library of Congress.",
+            "page_age": "2025-01-24T00:00:00",
+            "profile": {
+              "name": "LOC",
+              "url": "https://guides.loc.gov/presidents-portraits/chronological",
+              "long_name": "Library of Congress",
+              "img": "https://imgs.search.brave.com/ZRhnxPBDN8H7v-Tn09X-t0dG0D4mxVGO54ls-7H-uQs/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjc1MGY0YmY0/YTVmY2NjMGFhYmE4/NDc1MzMxMWI1ZWYz/ZjQyNWM0NWViZGRk/OTVhMGVkY2NjZmJm/MzFlZDUxOS9ndWlk/ZXMubG9jLmdvdi8"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "guides.loc.gov",
+              "hostname": "guides.loc.gov",
+              "favicon": "https://imgs.search.brave.com/ZRhnxPBDN8H7v-Tn09X-t0dG0D4mxVGO54ls-7H-uQs/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNjc1MGY0YmY0/YTVmY2NjMGFhYmE4/NDc1MzMxMWI1ZWYz/ZjQyNWM0NWViZGRk/OTVhMGVkY2NjZmJm/MzFlZDUxOS9ndWlk/ZXMubG9jLmdvdi8",
+              "path": "› presidents-portraits  › chronological"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/AIRy00HT6Kj9lYtc6FVMEGSJkJGaB3luNWC3eUdu6Es/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9ndWlk/ZXMubG9jLmdvdi9s/ZC5waHA_c2NyZWVu/c2hvdD1iZGZpZmRj/LnBuZyZhbXA7c2l6/ZT1mYWNlYm9vayZh/bXA7Y2I9MTc0NTI3/NjE2Mw",
+              "original": "https://guides.loc.gov/ld.php?screenshot=bdfifdc.png&size=facebook&cb=1745276163",
+              "logo": false
+            },
+            "age": "January 24, 2025"
+          },
+          {
+            "title": "The Presidents Timeline - White House Historical Association",
+            "url": "https://www.whitehousehistory.org/the-presidents-timeline",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "The origin of the \"American <strong>Presidents</strong>\" by Genevieve Ryan Bellaire is somewhat unique. One year, Genevieve's father asked her to memorize the order of <strong>the</strong> <strong>Presidents</strong> <strong>of</strong> <strong>the</strong> <strong>United</strong> <strong>States</strong> for Father's Day. As she did, she began to come up with rhymes to help her remember each <strong>President</strong>.",
+            "profile": {
+              "name": "WHHA",
+              "url": "https://www.whitehousehistory.org/the-presidents-timeline",
+              "long_name": "whitehousehistory.org",
+              "img": "https://imgs.search.brave.com/obTRceVEP6NO9e4DbkycdpGXD-BqtU-_nngXHCYPIFY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMTk3N2M3YzI0/MTE2ODE3ZGRiZTA0/OGQ5NTFmYTM1Y2M4/NmVhZWJhMmVmODIx/ZGMwZTE0NzVhZGU1/OGM0YjNlYS93d3cu/d2hpdGVob3VzZWhp/c3Rvcnkub3JnLw"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "whitehousehistory.org",
+              "hostname": "www.whitehousehistory.org",
+              "favicon": "https://imgs.search.brave.com/obTRceVEP6NO9e4DbkycdpGXD-BqtU-_nngXHCYPIFY/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvMTk3N2M3YzI0/MTE2ODE3ZGRiZTA0/OGQ5NTFmYTM1Y2M4/NmVhZWJhMmVmODIx/ZGMwZTE0NzVhZGU1/OGM0YjNlYS93d3cu/d2hpdGVob3VzZWhp/c3Rvcnkub3JnLw",
+              "path": "› the-presidents-timeline"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/izgH-zKFLNHc8-WKzXWQmK5bM2YI5vy6gWFq-CNiW3Y/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly93d3cu/d2hpdGVob3VzZWhp/c3Rvcnkub3JnL2lt/YWdlcy93aGhhLWxv/Z28ucG5nPzE3MTA0/MjU4MDY",
+              "original": "https://www.whitehousehistory.org/images/whha-logo.png?1710425806",
+              "logo": true
+            }
+          },
+          {
+            "title": "President's Role | George W. Bush Library",
+            "url": "https://www.georgewbushlibrary.gov/research/topic-guides/presidents-role",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "According to Article II of the Constitution, <strong>the</strong> <strong>President</strong> shall serve a term of four years. During his tenure, <strong>the</strong> <strong>President</strong> <strong>is</strong> Commander in Chief <strong>of</strong> <strong>United</strong> <strong>States</strong> Armed Forces and is empowered to make treaties and appointments within the federal government (with Senate approval).",
+            "profile": {
+              "name": "Georgewbushlibrary",
+              "url": "https://www.georgewbushlibrary.gov/research/topic-guides/presidents-role",
+              "long_name": "georgewbushlibrary.gov",
+              "img": "https://imgs.search.brave.com/qLv-u_R_aU6UmYYpFK-QDXCEqTRel5udn01-X9uT91o/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNWQ4ZDRhZjIw/NzJjYTVjZjdhMjJh/ZDcwOGI3MjQ2ZmI3/YzMwNWM1NDZiNTRl/NWQ4YmJhNDQzNDA2/ODk0MjY4MS93d3cu/Z2Vvcmdld2J1c2hs/aWJyYXJ5Lmdvdi8"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "generic",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "georgewbushlibrary.gov",
+              "hostname": "www.georgewbushlibrary.gov",
+              "favicon": "https://imgs.search.brave.com/qLv-u_R_aU6UmYYpFK-QDXCEqTRel5udn01-X9uT91o/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNWQ4ZDRhZjIw/NzJjYTVjZjdhMjJh/ZDcwOGI3MjQ2ZmI3/YzMwNWM1NDZiNTRl/NWQ4YmJhNDQzNDA2/ODk0MjY4MS93d3cu/Z2Vvcmdld2J1c2hs/aWJyYXJ5Lmdvdi8",
+              "path": "› research  › topic-guides  › presidents-role"
+            }
+          },
+          {
+            "title": "List of presidents of the United States | U.S. Presidents, Presidential Terms, Election Results, Timelines | Britannica",
+            "url": "https://www.britannica.com/topic/Presidents-of-the-United-States-1846696",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "As the head of the government of <strong>the</strong> <strong>United</strong> <strong>States</strong>, <strong>the</strong> <strong>president</strong> <strong>is</strong> arguably the most powerful government official in the world. <strong>The</strong> <strong>president</strong> <strong>is</strong> elected to a four-year term via an electoral college system. Since the Twenty-second Amendment was adopted in 1951, the American <strong>presidency</strong> has been",
+            "page_age": "2012-05-09T00:00:00",
+            "profile": {
+              "name": "Britannica",
+              "url": "https://www.britannica.com/topic/Presidents-of-the-United-States-1846696",
+              "long_name": "britannica.com",
+              "img": "https://imgs.search.brave.com/jMDHLEzOKBVbwQ7-d4wBSobNay75CY4fiZkxDsHYBkA/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNzJmYzgxOWRk/Y2FhNWI2MzQzMjQ4/MWVhZDZhNGY3ZjY0/MDgxZTM3YWU5MzYz/NGU2MzM3Y2Y2YTYz/M2IyM2Y0NC93d3cu/YnJpdGFubmljYS5j/b20v"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "article",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "britannica.com",
+              "hostname": "www.britannica.com",
+              "favicon": "https://imgs.search.brave.com/jMDHLEzOKBVbwQ7-d4wBSobNay75CY4fiZkxDsHYBkA/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvNzJmYzgxOWRk/Y2FhNWI2MzQzMjQ4/MWVhZDZhNGY3ZjY0/MDgxZTM3YWU5MzYz/NGU2MzM3Y2Y2YTYz/M2IyM2Y0NC93d3cu/YnJpdGFubmljYS5j/b20v",
+              "path": "  › politics, law & government  › politics & political systems"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/q2-OM4goHVNZ2iG9mX-WD6cFJeq4RZ0sIKHxvL5Dz3M/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9jZG4u/YnJpdGFubmljYS5j/b20vMjMvMjUxMzIz/LTA0OS1CNDZBQzI5/NS9wcmVzaWRlbnQt/b2YtdGhlLXVuaXRl/ZC1zdGF0ZXMtVVMt/ZWxlY3Rpb25zLmpw/Zw",
+              "original": "https://cdn.britannica.com/23/251323-049-B46AC295/president-of-the-united-states-US-elections.jpg",
+              "logo": false
+            },
+            "age": "May 9, 2012"
+          },
+          {
+            "title": "US President-elect Donald Trump to be sworn-in as the 47th President today - YouTube",
+            "url": "https://www.youtube.com/watch?v=8_RfIc4bDJ0&pp=0gcJCdgAo7VqN5tD",
+            "is_source_local": false,
+            "is_source_both": false,
+            "description": "Today the US <strong>President</strong>-elect Donald Trump will be sworn-in as the 47th <strong>President</strong> to hold office.Officials expect nearly 250,000 ticketed guests to descend th...",
+            "page_age": "2025-01-20T05:33:39",
+            "profile": {
+              "name": "YouTube",
+              "url": "https://www.youtube.com/watch?v=8_RfIc4bDJ0&pp=0gcJCdgAo7VqN5tD",
+              "long_name": "youtube.com",
+              "img": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v"
+            },
+            "language": "en",
+            "family_friendly": true,
+            "type": "search_result",
+            "subtype": "video",
+            "is_live": false,
+            "meta_url": {
+              "scheme": "https",
+              "netloc": "youtube.com",
+              "hostname": "www.youtube.com",
+              "favicon": "https://imgs.search.brave.com/Wg4wjE5SHAargkzePU3eSLmWgVz84BEZk1SjSglJK_U/rs:fit:32:32:1:0/g:ce/aHR0cDovL2Zhdmlj/b25zLnNlYXJjaC5i/cmF2ZS5jb20vaWNv/bnMvOTkyZTZiMWU3/YzU3Nzc5YjExYzUy/N2VhZTIxOWNlYjM5/ZGVjN2MyZDY4Nzdh/ZDYzMTYxNmI5N2Rk/Y2Q3N2FkNy93d3cu/eW91dHViZS5jb20v",
+              "path": "› watch"
+            },
+            "thumbnail": {
+              "src": "https://imgs.search.brave.com/BPcCXLDsFchVfQdg_8sjpwA_g21RkR4W2DwQtfe4jhI/rs:fit:200:200:1:0/g:ce/aHR0cHM6Ly9pLnl0/aW1nLmNvbS92aS84/X1JmSWM0YkRKMC9t/YXhyZXNkZWZhdWx0/LmpwZw",
+              "original": "https://i.ytimg.com/vi/8_RfIc4bDJ0/maxresdefault.jpg",
+              "logo": false
+            },
+            "age": "January 20, 2025"
+          }
+        ],
+        "family_friendly": true
+      }
+    }
+  }

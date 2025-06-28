@@ -1,0 +1,15 @@
+{
+  "name": "Brave_Search",
+  "description": "A tool to search the web using Brave Search API",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ]
+  }
+}

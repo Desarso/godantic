@@ -1,0 +1,383 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "contact": {}
+    },
+    "paths": {
+        "/chat/history/{conversationID}": {
+            "get": {
+                "description": "Retrieves the entire chat history for a specific conversation.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Get Chat History",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved chat history",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.ChatMessageResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Missing or invalid Conversation ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error - Failed to retrieve history",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/stream/{conversationID}": {
+            "post": {
+                "description": "streams responses from the Gemini model via Server-Sent Events for a specific conversation",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Chat stream route",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User Message Data",
+                        "name": "userRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.User_Message"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Server-Sent Events stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Invalid input or Conversation ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Error processing request or server error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/ws/{session_id}": {
+            "get": {
+                "description": "Upgrade to WebSocket for interactive AI chat with streaming and tool confirmation.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "WebSocket Chat",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "session_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/chat/{conversationID}": {
+            "post": {
+                "description": "Sends a prompt to the AI agent and receives a response for a specific conversation.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chat"
+                ],
+                "summary": "Chat with the AI agent",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "conversationID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User Message Data",
+                        "name": "userRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.User_Message"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Model_Response"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Invalid input or Conversation ID",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found - Conversation not found (optional)",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error - Error processing request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HTTPError"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controllers.HTTPError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "message": {
+                    "type": "string",
+                    "example": "status bad request"
+                }
+            }
+        },
+        "models.ChatMessageResponse": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Time the message was created",
+                    "type": "string"
+                },
+                "function_id": {
+                    "description": "Associated function call ID (potentially linking bundles)",
+                    "type": "string"
+                },
+                "id": {
+                    "description": "Message primary key ID",
+                    "type": "integer"
+                },
+                "parts": {
+                    "description": "Unmarshalled parts array (e.g., []User_Part, []Model_Part)"
+                },
+                "role": {
+                    "description": "\"user\", \"model\"",
+                    "type": "string"
+                },
+                "sequence": {
+                    "type": "integer"
+                },
+                "text": {
+                    "description": "Primary text content, if applicable (extracted from parts)",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"user_message\", \"model_message\", \"function_call\", \"function_response\"",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Time the message was last updated",
+                    "type": "string"
+                }
+            }
+        },
+        "models.Content": {
+            "type": "object",
+            "properties": {
+                "parts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.User_Part"
+                    }
+                }
+            }
+        },
+        "models.FileData": {
+            "type": "object",
+            "properties": {
+                "fileUrl": {
+                    "type": "string"
+                },
+                "googleUri": {
+                    "type": "string"
+                },
+                "mimeType": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FunctionCall": {
+            "type": "object",
+            "properties": {
+                "args": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "id": {
+                    "description": "Unique ID for this specific call instance",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.FunctionResponse": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "response": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "models.ImageData": {
+            "type": "object",
+            "properties": {
+                "fileUrl": {
+                    "type": "string"
+                },
+                "googleUri": {
+                    "type": "string"
+                },
+                "mimeType": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.InlineData": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "mimeType": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Model_Part": {
+            "type": "object",
+            "properties": {
+                "functionCall": {
+                    "$ref": "#/definitions/models.FunctionCall"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Model_Response": {
+            "type": "object",
+            "properties": {
+                "parts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Model_Part"
+                    }
+                }
+            }
+        },
+        "models.User_Message": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "$ref": "#/definitions/models.Content"
+                },
+                "role": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.User_Part": {
+            "type": "object",
+            "properties": {
+                "file_data": {
+                    "$ref": "#/definitions/models.FileData"
+                },
+                "function_response": {
+                    "$ref": "#/definitions/models.FunctionResponse"
+                },
+                "image_data": {
+                    "$ref": "#/definitions/models.ImageData"
+                },
+                "inline_data": {
+                    "$ref": "#/definitions/models.InlineData"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Type \"Bearer\" followed by a space and your token.",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

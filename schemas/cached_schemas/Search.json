@@ -1,0 +1,15 @@
+{
+  "name": "Search",
+  "description": "A tool to search the web using Perplexity's API",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ]
+  }
+}

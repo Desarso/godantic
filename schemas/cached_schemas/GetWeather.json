@@ -1,0 +1,15 @@
+{
+  "name": "GetWeather",
+  "description": "A tool to get the weather in a specific location",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "location": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "location"
+    ]
+  }
+}

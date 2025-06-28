@@ -1,0 +1,256 @@
+definitions:
+  controllers.HTTPError:
+    properties:
+      code:
+        example: 400
+        type: integer
+      message:
+        example: status bad request
+        type: string
+    type: object
+  models.ChatMessageResponse:
+    properties:
+      conversation_id:
+        type: string
+      created_at:
+        description: Time the message was created
+        type: string
+      function_id:
+        description: Associated function call ID (potentially linking bundles)
+        type: string
+      id:
+        description: Message primary key ID
+        type: integer
+      parts:
+        description: Unmarshalled parts array (e.g., []User_Part, []Model_Part)
+      role:
+        description: '"user", "model"'
+        type: string
+      sequence:
+        type: integer
+      text:
+        description: Primary text content, if applicable (extracted from parts)
+        type: string
+      type:
+        description: '"user_message", "model_message", "function_call", "function_response"'
+        type: string
+      updated_at:
+        description: Time the message was last updated
+        type: string
+    type: object
+  models.Content:
+    properties:
+      parts:
+        items:
+          $ref: '#/definitions/models.User_Part'
+        type: array
+    type: object
+  models.FileData:
+    properties:
+      fileUrl:
+        type: string
+      googleUri:
+        type: string
+      mimeType:
+        type: string
+    type: object
+  models.FunctionCall:
+    properties:
+      args:
+        additionalProperties: true
+        type: object
+      id:
+        description: Unique ID for this specific call instance
+        type: string
+      name:
+        type: string
+    type: object
+  models.FunctionResponse:
+    properties:
+      name:
+        type: string
+      response:
+        additionalProperties: true
+        type: object
+    type: object
+  models.ImageData:
+    properties:
+      fileUrl:
+        type: string
+      googleUri:
+        type: string
+      mimeType:
+        type: string
+    type: object
+  models.InlineData:
+    properties:
+      data:
+        type: string
+      mimeType:
+        type: string
+    type: object
+  models.Model_Part:
+    properties:
+      functionCall:
+        $ref: '#/definitions/models.FunctionCall'
+      text:
+        type: string
+    type: object
+  models.Model_Response:
+    properties:
+      parts:
+        items:
+          $ref: '#/definitions/models.Model_Part'
+        type: array
+    type: object
+  models.User_Message:
+    properties:
+      content:
+        $ref: '#/definitions/models.Content'
+      role:
+        type: string
+    type: object
+  models.User_Part:
+    properties:
+      file_data:
+        $ref: '#/definitions/models.FileData'
+      function_response:
+        $ref: '#/definitions/models.FunctionResponse'
+      image_data:
+        $ref: '#/definitions/models.ImageData'
+      inline_data:
+        $ref: '#/definitions/models.InlineData'
+      text:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /chat/{conversationID}:
+    post:
+      description: Sends a prompt to the AI agent and receives a response for a specific
+        conversation.
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: conversationID
+        required: true
+        type: string
+      - description: User Message Data
+        in: body
+        name: userRequest
+        required: true
+        schema:
+          $ref: '#/definitions/models.User_Message'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Model_Response'
+        "400":
+          description: Bad Request - Invalid input or Conversation ID
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+        "404":
+          description: Not Found - Conversation not found (optional)
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+        "500":
+          description: Internal Server Error - Error processing request
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+      summary: Chat with the AI agent
+      tags:
+      - Chat
+  /chat/history/{conversationID}:
+    get:
+      description: Retrieves the entire chat history for a specific conversation.
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: conversationID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully retrieved chat history
+          schema:
+            items:
+              $ref: '#/definitions/models.ChatMessageResponse'
+            type: array
+        "400":
+          description: Bad Request - Missing or invalid Conversation ID
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+        "500":
+          description: Internal Server Error - Failed to retrieve history
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+      summary: Get Chat History
+      tags:
+      - Chat
+  /chat/stream/{conversationID}:
+    post:
+      description: streams responses from the Gemini model via Server-Sent Events
+        for a specific conversation
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: conversationID
+        required: true
+        type: string
+      - description: User Message Data
+        in: body
+        name: userRequest
+        required: true
+        schema:
+          $ref: '#/definitions/models.User_Message'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: Server-Sent Events stream
+          schema:
+            type: string
+        "400":
+          description: Bad Request - Invalid input or Conversation ID
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+        "500":
+          description: Error processing request or server error
+          schema:
+            $ref: '#/definitions/controllers.HTTPError'
+      summary: Chat stream route
+      tags:
+      - Chat
+  /chat/ws/{session_id}:
+    get:
+      consumes:
+      - application/json
+      description: Upgrade to WebSocket for interactive AI chat with streaming and
+        tool confirmation.
+      parameters:
+      - description: Session ID
+        in: path
+        name: session_id
+        required: true
+        type: string
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+      summary: WebSocket Chat
+      tags:
+      - Chat
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and your token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

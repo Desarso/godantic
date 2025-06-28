@@ -1,0 +1,15 @@
+{
+  "name": "Search_Google",
+  "description": "",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "query"
+    ]
+  }
+}
