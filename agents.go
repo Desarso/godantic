@@ -1,10 +1,10 @@
 package godantic
 
 import (
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -13,6 +13,9 @@ import (
 	models "github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/stores"
 )
+
+//go:embed schemas/cached_schemas/*.json
+var schemaFiles embed.FS
 
 type Model interface {
 	Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (models.Model_Response, error)
@@ -50,15 +53,13 @@ func Create_Tool(fn interface{}) (models.FunctionDeclaration, error) {
 		funcName = fullName[lastDot+1:]
 	}
 
-	// Construct the path to the schema file
-	// Assumes the executable or test is run from the root directory containing 'gen_schema'
-	schemaDir := filepath.Join("godantic", "schemas", "cached_schemas")
-	schemaPath := filepath.Join(schemaDir, funcName+".json")
+	// Construct the path to the schema file in the embedded filesystem
+	schemaPath := filepath.Join("schemas", "cached_schemas", funcName+".json")
 
-	// Read the schema file
-	schemaBytes, err := os.ReadFile(schemaPath)
+	// Read the schema file from embedded filesystem
+	schemaBytes, err := schemaFiles.ReadFile(schemaPath)
 	if err != nil {
-		return models.FunctionDeclaration{}, fmt.Errorf("failed to read schema file '%s': %w", schemaPath, err)
+		return models.FunctionDeclaration{}, fmt.Errorf("failed to read embedded schema file '%s': %w", schemaPath, err)
 	}
 
 	// Unmarshal the JSON schema into FunctionDeclarations
@@ -93,7 +94,6 @@ func Create_Tools(fns []interface{}) ([]models.FunctionDeclaration, error) {
 }
 
 func (agent *Agent) Run(request models.Model_Request, conversationHistory []stores.Message) (models.Model_Response, error) {
-	// Run the model with the request - single call, no loop
 	return agent.Model.Model_Request(request, agent.Tools, conversationHistory)
 }
 
