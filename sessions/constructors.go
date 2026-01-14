@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/Desarso/godantic/stores"
 	"github.com/gorilla/websocket"
@@ -13,8 +14,9 @@ import (
 func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterface, store stores.MessageStore) *AgentSession {
 	logger := log.New(os.Stdout, fmt.Sprintf("[WS %s] ", sessionID), log.LstdFlags)
 	writer := &WebSocketWriter{
-		Conn:   conn,
-		Logger: logger,
+		Conn:      conn,
+		Logger:    logger,
+		StartTime: time.Now(),
 	}
 
 	return &AgentSession{

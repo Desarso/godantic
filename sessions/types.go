@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"log"
+	"time"
 
 	"github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/stores"
@@ -20,11 +21,22 @@ func (e *AgentError) Error() string {
 
 // WebSocketWriter handles all WebSocket communication
 type WebSocketWriter struct {
-	Conn   *websocket.Conn
-	Logger *log.Logger
+	Conn             *websocket.Conn
+	Logger           *log.Logger
+	StartTime        time.Time
+	FirstTokenTime   *time.Time
+	FirstTokenLogged bool
 }
 
 func (w *WebSocketWriter) WriteResponse(resp interface{}) error {
+	// Track time to first token
+	if !w.FirstTokenLogged && w.FirstTokenTime == nil && !w.StartTime.IsZero() {
+		now := time.Now()
+		w.FirstTokenTime = &now
+		timeToFirstToken := now.Sub(w.StartTime)
+		w.Logger.Printf("Time to first token: %v", timeToFirstToken)
+		w.FirstTokenLogged = true
+	}
 	return w.Conn.WriteJSON(resp)
 }
 
