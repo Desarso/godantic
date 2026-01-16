@@ -36,6 +36,7 @@ type FileData struct {
 
 // FunctionResponse represents a tool's response in user messages
 type FunctionResponse struct {
+	ID       string                 `json:"id"` // The tool call ID this response is for
 	Name     string                 `json:"name"`
 	Response map[string]interface{} `json:"response"`
 }

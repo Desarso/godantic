@@ -20,11 +20,12 @@ func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterfac
 	}
 
 	return &AgentSession{
-		Agent:     agent,
-		SessionID: sessionID,
-		Writer:    writer,
-		Store:     store,
-		Logger:    logger,
+		Agent:          agent,
+		SessionID:      sessionID,
+		Writer:         writer,
+		Store:          store,
+		Logger:         logger,
+		ResponseWaiter: NewResponseWaiter(),
 	}
 }
 

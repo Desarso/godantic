@@ -118,6 +118,7 @@ func (as *AgentSession) saveToolResults(toolResults []models.Tool_Result) error 
 
 		part := models.User_Part{
 			FunctionResponse: &models.FunctionResponse{
+				ID:       toolResult.Tool_ID,
 				Name:     toolResult.Tool_Name,
 				Response: resultMap,
 			},
@@ -212,6 +213,7 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 
 				// Add to results for next iteration
 				toolResults = append(toolResults, models.Tool_Result{
+					Tool_ID:     fc.ID,
 					Tool_Name:   fc.Name,
 					Tool_Output: toolResult,
 				})
@@ -282,7 +284,8 @@ func (as *AgentSession) checkAndExecuteTool(fc functionCallInfo) (bool, error) {
 
 // executeTool executes a tool and returns the result
 func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
-	return as.Agent.ExecuteTool(fc.Name, fc.Args, as.SessionID)
+	// Use ExecuteToolWithContext which handles frontend tools specially
+	return as.ExecuteToolWithContext(fc.Name, fc.Args)
 }
 
 // sendToolResult sends a tool result to the WebSocket client

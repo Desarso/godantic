@@ -1,0 +1,16 @@
+{
+  "name": "Browser_Alert",
+  "description": "Browser_Alert triggers an alert in the user's browser with the specified message",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "message": {
+        "type": "string",
+        "description": "message"
+      }
+    },
+    "required": [
+      "message"
+    ]
+  }
+}

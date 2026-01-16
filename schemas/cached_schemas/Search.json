@@ -1,6 +1,6 @@
 {
   "name": "Search",
-  "description": "A tool to search the web using Perplexity's API",
+  "description": "Search is a tool to search the web using Perplexity's API",
   "parameters": {
     "type": "object",
     "properties": {

@@ -11,6 +11,7 @@ type Model_Request struct {
 }
 
 type Tool_Result struct {
+	Tool_ID     string `json:"tool_id"` // The tool call ID to match with the tool call
 	Tool_Name   string `json:"tool_name"`
 	Tool_Output string `json:"tool_output"`
 }

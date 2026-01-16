@@ -1,6 +1,6 @@
 {
   "name": "Brave_Search",
-  "description": "A tool to search the web using Brave Search API",
+  "description": "Brave_Search is a tool to search the web using Brave Search API",
   "parameters": {
     "type": "object",
     "properties": {

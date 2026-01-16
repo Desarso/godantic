@@ -87,6 +87,16 @@ func (s *SQLiteStore) SaveMessage(sessionID, role, messageType string, parts int
 		return fmt.Errorf("database connection is nil")
 	}
 
+	// Ensure conversation record exists (create if first message)
+	var existingConv Conversation
+	result := s.db.Where("conversation_id = ?", sessionID).First(&existingConv)
+	if result.Error != nil {
+		// Conversation doesn't exist, create it
+		if err := s.CreateConversation(sessionID, ""); err != nil {
+			log.Printf("Warning: Failed to create conversation record for %s: %v", sessionID, err)
+		}
+	}
+
 	var count int64
 	if err := s.db.Model(&Message{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to count existing messages: %w", err)

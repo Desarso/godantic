@@ -647,22 +647,24 @@ func (s *HTTPSession) processResponseForTools(response models.Model_Response) ([
 				resultMap = map[string]interface{}{"raw_output": toolResult}
 			}
 
-			toolResponsePart := models.User_Part{
-				FunctionResponse: &models.FunctionResponse{
-					Name:     fc.Name,
-					Response: resultMap,
-				},
-			}
+		toolResponsePart := models.User_Part{
+			FunctionResponse: &models.FunctionResponse{
+				ID:       fc.ID,
+				Name:     fc.Name,
+				Response: resultMap,
+			},
+		}
 
-			if err := s.Store.SaveMessage(s.ConversationID, "user", "function_response", []models.User_Part{toolResponsePart}, fc.ID); err != nil {
-				s.Logger.Printf("Failed to save tool result for %s: %v", fc.Name, err)
-			}
+		if err := s.Store.SaveMessage(s.ConversationID, "user", "function_response", []models.User_Part{toolResponsePart}, fc.ID); err != nil {
+			s.Logger.Printf("Failed to save tool result for %s: %v", fc.Name, err)
+		}
 
-			// Add to results for next iteration
-			toolResults = append(toolResults, models.Tool_Result{
-				Tool_Name:   fc.Name,
-				Tool_Output: toolResult,
-			})
+		// Add to results for next iteration
+		toolResults = append(toolResults, models.Tool_Result{
+			Tool_ID:     fc.ID,
+			Tool_Name:   fc.Name,
+			Tool_Output: toolResult,
+		})
 			executedAny = true
 		}
 	}
@@ -728,17 +730,18 @@ func (s *HTTPSession) processResponseForToolsAndText(response models.Model_Respo
 		} else if autoApproved {
 			s.Logger.Printf("Tool %s is auto-approved. Executing...", fc.Name)
 
-			toolResult, err := s.Agent.ExecuteTool(fc.Name, fc.Args, s.ConversationID)
-			if err != nil {
-				s.Logger.Printf("Tool execution error for %s: %v", fc.Name, err)
-				continue
-			}
+		toolResult, err := s.Agent.ExecuteTool(fc.Name, fc.Args, s.ConversationID)
+		if err != nil {
+			s.Logger.Printf("Tool execution error for %s: %v", fc.Name, err)
+			continue
+		}
 
-			// Add to results for next iteration
-			toolResults = append(toolResults, models.Tool_Result{
-				Tool_Name:   fc.Name,
-				Tool_Output: toolResult,
-			})
+		// Add to results for next iteration
+		toolResults = append(toolResults, models.Tool_Result{
+			Tool_ID:     fc.ID,
+			Tool_Name:   fc.Name,
+			Tool_Output: toolResult,
+		})
 			executedAny = true
 		}
 	}

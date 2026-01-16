@@ -13,6 +13,7 @@ type WebSocketWriter = sessions.WebSocketWriter
 type WebSocketToolResultMessage = sessions.WebSocketToolResultMessage
 type AgentError = sessions.AgentError
 type SSEWriter = sessions.SSEWriter
+type ResponseWaiter = sessions.ResponseWaiter
 
 // Re-export constructor functions
 func NewAgentSession(sessionID string, conn *websocket.Conn, agent *Agent, store stores.MessageStore) *AgentSession {

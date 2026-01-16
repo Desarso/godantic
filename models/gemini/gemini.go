@@ -25,7 +25,10 @@ var (
 )
 
 func init() {
-	godotenv.Load()
+	// Load .env file if it exists (not present in production)
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
 	var err error
 	logFile, err = os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -34,7 +37,8 @@ func init() {
 }
 
 type Gemini_Model struct {
-	Model string `json:"model"`
+	Model        string `json:"model"`
+	SystemPrompt string `json:"system_prompt,omitempty"`
 }
 
 func (g *Gemini_Model) Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (models.Model_Response, error) {
@@ -157,7 +161,7 @@ func (g *Gemini_Model) Stream_Model_Request(request models.Model_Request, tools 
 }
 
 func (g *Gemini_Model) model_request(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (Gemini_response, error) {
-	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory)
+	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
 	if err != nil {
 		return Gemini_response{}, fmt.Errorf("failed to create gemini request: %w", err)
 	}
@@ -176,7 +180,7 @@ func (g *Gemini_Model) model_request(model string, message models.User_Message, 
 
 func (g *Gemini_Model) stream_model_request(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (<-chan Gemini_response, <-chan error) {
 	// create_gemini_request now handles potentially empty 'message' if 'toolResults' is present
-	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory)
+	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
 	if err != nil {
 		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("failed to create gemini stream request body: %w", err)
@@ -527,7 +531,7 @@ func getInlineData(url string) string {
 }
 
 // functio that turns User_Message to something gemini likes
-func create_gemini_request(message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (Gemini_Request_Body, error) {
+func create_gemini_request(message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, systemPrompt string) (Gemini_Request_Body, error) {
 
 	allContents := []Gemini_Content{}
 
@@ -627,7 +631,7 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 				respMap = map[string]interface{}{"output": tr.Tool_Output}
 			}
 			// Create a single part for this function response
-			toolResponsePart := Request_Part{FunctionResponse: &models.FunctionResponse{Name: tr.Tool_Name, Response: respMap}}
+			toolResponsePart := Request_Part{FunctionResponse: &models.FunctionResponse{ID: tr.Tool_ID, Name: tr.Tool_Name, Response: respMap}}
 			// Create a separate content block for this single part
 			allContents = append(allContents, Gemini_Content{
 				Role:  "user", // Function responses always get the 'user' role
@@ -705,10 +709,18 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 		gemini_tools = append(gemini_tools, Gemini_Tools{FunctionDeclarations: tools})
 	}
 
-	// 5. Construct the final request body
+	// 5. Construct the final request body with system instruction
+	var systemInstruction *SystemInstruction
+	if systemPrompt != "" {
+		systemInstruction = &SystemInstruction{
+			Parts: []SystemPart{{Text: systemPrompt}},
+		}
+	}
+
 	request_body := Gemini_Request_Body{
-		Contents: &allContents,
-		Tools:    &gemini_tools,
+		Contents:          &allContents,
+		Tools:             &gemini_tools,
+		SystemInstruction: systemInstruction,
 	}
 
 	return request_body, nil

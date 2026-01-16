@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	"github.com/Desarso/godantic/models"
@@ -57,14 +58,70 @@ type WebSocketToolResultMessage struct {
 	ResultJSON   string                 `json:"result_json"` // Raw JSON string of result
 }
 
+// ResponseWaiter allows tools to wait for user input from the frontend
+type ResponseWaiter struct {
+	responseChan chan string
+	isWaiting    bool
+	mu           sync.Mutex
+}
+
+// NewResponseWaiter creates a new response waiter
+func NewResponseWaiter() *ResponseWaiter {
+	return &ResponseWaiter{
+		responseChan: make(chan string, 1),
+		isWaiting:    false,
+	}
+}
+
+// WaitForResponse blocks until a response is received or timeout
+func (rw *ResponseWaiter) WaitForResponse() (string, bool) {
+	rw.mu.Lock()
+	rw.isWaiting = true
+	rw.mu.Unlock()
+
+	defer func() {
+		rw.mu.Lock()
+		rw.isWaiting = false
+		rw.mu.Unlock()
+	}()
+
+	response, ok := <-rw.responseChan
+	return response, ok
+}
+
+// ProvideResponse provides a response from the frontend
+func (rw *ResponseWaiter) ProvideResponse(response string) bool {
+	rw.mu.Lock()
+	waiting := rw.isWaiting
+	rw.mu.Unlock()
+
+	if waiting {
+		select {
+		case rw.responseChan <- response:
+			return true
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+// IsWaiting returns whether the waiter is currently waiting
+func (rw *ResponseWaiter) IsWaiting() bool {
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+	return rw.isWaiting
+}
+
 // AgentSession encapsulates WebSocket agent interaction logic
 type AgentSession struct {
-	Agent     AgentInterface
-	SessionID string
-	Writer    *WebSocketWriter
-	Store     stores.MessageStore
-	Logger    *log.Logger
-	History   []stores.Message
+	Agent          AgentInterface
+	SessionID      string
+	Writer         *WebSocketWriter
+	Store          stores.MessageStore
+	Logger         *log.Logger
+	History        []stores.Message
+	ResponseWaiter *ResponseWaiter
 }
 
 // HTTPSession handles HTTP-based chat interactions

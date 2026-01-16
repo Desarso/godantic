@@ -87,8 +87,17 @@ type InlineData struct {
 }
 
 type Gemini_Request_Body struct {
-	Contents *[]Gemini_Content `json:"contents"`
-	Tools    *[]Gemini_Tools   `json:"tools"`
+	Contents          *[]Gemini_Content  `json:"contents"`
+	Tools             *[]Gemini_Tools    `json:"tools,omitempty"`
+	SystemInstruction *SystemInstruction `json:"systemInstruction,omitempty"`
+}
+
+type SystemInstruction struct {
+	Parts []SystemPart `json:"parts"`
+}
+
+type SystemPart struct {
+	Text string `json:"text"`
 }
 
 type Gemini_Content struct {

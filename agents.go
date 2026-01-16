@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	models "github.com/Desarso/godantic/models"
+	"github.com/Desarso/godantic/models/gemini"
+	"github.com/Desarso/godantic/models/openrouter"
 	"github.com/Desarso/godantic/stores"
 )
 
@@ -27,13 +29,86 @@ type Agent struct {
 	Tools []models.FunctionDeclaration
 }
 
-// create_agent is a placeholder/example function
+// Create_Agent creates an agent with the given model and tools
 func Create_Agent(model Model, tools []models.FunctionDeclaration) Agent {
-	// Implementation depends on how agents are actually created and used.
-	// For now, just return a basic struct.
 	return Agent{
 		Model: model,
 		Tools: tools,
+	}
+}
+
+// Create_Agent_From_Config creates an agent from a WSConfig
+func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration) Agent {
+	var model Model
+
+	switch config.Provider {
+	case ProviderOpenRouter:
+		model = &openrouter.OpenRouter_Model{
+			Model:       config.ModelName,
+			Temperature: config.Temperature,
+			MaxTokens:   config.MaxTokens,
+			SiteURL:     config.SiteURL,
+			SiteName:    config.SiteName,
+		}
+	case ProviderGemini:
+		fallthrough
+	default:
+		model = &gemini.Gemini_Model{
+			Model: config.ModelName,
+		}
+	}
+
+	return Agent{
+		Model: model,
+		Tools: tools,
+	}
+}
+
+// NewGeminiModel creates a new Gemini model instance
+func NewGeminiModel(modelName string) *gemini.Gemini_Model {
+	if modelName == "" {
+		modelName = "gemini-2.0-flash"
+	}
+	return &gemini.Gemini_Model{
+		Model: modelName,
+	}
+}
+
+// NewOpenRouterModel creates a new OpenRouter model instance
+func NewOpenRouterModel(modelName string) *openrouter.OpenRouter_Model {
+	if modelName == "" {
+		modelName = "openai/gpt-4o-mini"
+	}
+	return &openrouter.OpenRouter_Model{
+		Model: modelName,
+	}
+}
+
+// NewOpenRouterModelWithOptions creates a new OpenRouter model with full configuration
+func NewOpenRouterModelWithOptions(modelName string, temperature *float64, maxTokens *int, siteURL, siteName string) *openrouter.OpenRouter_Model {
+	if modelName == "" {
+		modelName = "openai/gpt-4o-mini"
+	}
+	return &openrouter.OpenRouter_Model{
+		Model:       modelName,
+		Temperature: temperature,
+		MaxTokens:   maxTokens,
+		SiteURL:     siteURL,
+		SiteName:    siteName,
+	}
+}
+
+// NewOpenRouterModelWithBaseURL creates a new OpenRouter-compatible model with custom base URL and API key
+func NewOpenRouterModelWithBaseURL(modelName, baseURL, apiKeyEnv string, temperature *float64, maxTokens *int) *openrouter.OpenRouter_Model {
+	if modelName == "" {
+		modelName = "openai/gpt-4o-mini"
+	}
+	return &openrouter.OpenRouter_Model{
+		Model:       modelName,
+		BaseURL:     baseURL,
+		APIKeyEnv:   apiKeyEnv,
+		Temperature: temperature,
+		MaxTokens:   maxTokens,
 	}
 }
 

@@ -1,0 +1,15 @@
+{
+  "name": "Generate_Image",
+  "description": "Generate_Image generates an image using Gemini's image generation model\nReturns a markdown formatted image with the URL",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "prompt"
+    ]
+  }
+}
