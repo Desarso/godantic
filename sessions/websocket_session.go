@@ -284,8 +284,26 @@ func (as *AgentSession) checkAndExecuteTool(fc functionCallInfo) (bool, error) {
 
 // executeTool executes a tool and returns the result
 func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
-	// Use ExecuteToolWithContext which handles frontend tools specially
-	return as.ExecuteToolWithContext(fc.Name, fc.Args)
+	// Check FrontendToolExecutor first if it exists and this is a frontend tool
+	if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
+		return as.FrontendToolExecutor.ExecuteFrontendTool(fc.Name, fc.Args)
+	}
+
+	// If a custom tool executor is set (for frontend tools), use it
+	if as.ToolExecutor != nil {
+		return as.ToolExecutor(
+			fc.Name,
+			fc.Args,
+			as.Agent,
+			as.SessionID,
+			as.Writer,
+			as.ResponseWaiter,
+			as.Logger,
+		)
+	}
+
+	// Otherwise, use the standard agent ExecuteTool
+	return as.Agent.ExecuteTool(fc.Name, fc.Args, as.SessionID)
 }
 
 // sendToolResult sends a tool result to the WebSocket client

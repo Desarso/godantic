@@ -113,15 +113,28 @@ func (rw *ResponseWaiter) IsWaiting() bool {
 	return rw.isWaiting
 }
 
+// ToolExecutorFunc is a function type for custom tool execution
+type ToolExecutorFunc func(
+	functionName string,
+	functionCallArgs map[string]interface{},
+	agent AgentInterface,
+	sessionID string,
+	writer *WebSocketWriter,
+	responseWaiter *ResponseWaiter,
+	logger *log.Logger,
+) (string, error)
+
 // AgentSession encapsulates WebSocket agent interaction logic
 type AgentSession struct {
-	Agent          AgentInterface
-	SessionID      string
-	Writer         *WebSocketWriter
-	Store          stores.MessageStore
-	Logger         *log.Logger
-	History        []stores.Message
-	ResponseWaiter *ResponseWaiter
+	Agent                AgentInterface
+	SessionID            string
+	Writer               *WebSocketWriter
+	Store                stores.MessageStore
+	Logger               *log.Logger
+	History              []stores.Message
+	ResponseWaiter       *ResponseWaiter
+	FrontendToolExecutor FrontendToolExecutor // Optional: for handling frontend tools
+	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
 }
 
 // HTTPSession handles HTTP-based chat interactions
