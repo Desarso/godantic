@@ -10,6 +10,7 @@ type ModelProvider string
 const (
 	ProviderGemini     ModelProvider = "gemini"
 	ProviderOpenRouter ModelProvider = "openrouter"
+	ProviderGroq       ModelProvider = "groq"
 )
 
 // WSConfig holds configuration for WebSocket controllers
@@ -17,7 +18,7 @@ type WSConfig struct {
 	ModelName    string
 	Tools        []interface{}
 	Store        stores.MessageStore
-	Provider     ModelProvider // AI model provider (gemini, openrouter)
+	Provider     ModelProvider // AI model provider (gemini, openrouter, groq)
 	SiteURL      string        // Optional: Site URL for OpenRouter rankings
 	SiteName     string        // Optional: Site name for OpenRouter rankings
 	Temperature  *float64      // Optional: Temperature for model generation
@@ -116,6 +117,35 @@ func (c *WSConfig) WithProvider(provider ModelProvider) *WSConfig {
 // WithOpenRouter sets OpenRouter as the provider with the specified model
 func (c *WSConfig) WithOpenRouter(model string) *WSConfig {
 	c.Provider = ProviderOpenRouter
+	if model != "" {
+		c.ModelName = model
+	}
+	return c
+}
+
+// NewGroqConfig creates a new configuration with Groq as the provider
+func NewGroqConfig(model string) *WSConfig {
+	// Create a default SQLite store
+	defaultStore, err := stores.NewSQLiteStoreDefault()
+	if err != nil {
+		panic("Failed to create default SQLite store: " + err.Error())
+	}
+
+	if model == "" {
+		model = "llama-3.1-70b-versatile"
+	}
+
+	return &WSConfig{
+		ModelName: model,
+		Tools:     []interface{}{},
+		Store:     defaultStore,
+		Provider:  ProviderGroq,
+	}
+}
+
+// WithGroq sets Groq as the provider with the specified model
+func (c *WSConfig) WithGroq(model string) *WSConfig {
+	c.Provider = ProviderGroq
 	if model != "" {
 		c.ModelName = model
 	}

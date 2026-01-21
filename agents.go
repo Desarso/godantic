@@ -12,6 +12,7 @@ import (
 
 	models "github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/models/gemini"
+	"github.com/Desarso/godantic/models/groq"
 	"github.com/Desarso/godantic/models/openrouter"
 	"github.com/Desarso/godantic/stores"
 )
@@ -49,6 +50,13 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 			MaxTokens:   config.MaxTokens,
 			SiteURL:     config.SiteURL,
 			SiteName:    config.SiteName,
+		}
+	case ProviderGroq:
+		model = &groq.Groq_Model{
+			Model:       config.ModelName,
+			Temperature: config.Temperature,
+			MaxTokens:   config.MaxTokens,
+			SystemPrompt: config.SystemPrompt,
 		}
 	case ProviderGemini:
 		fallthrough
@@ -109,6 +117,29 @@ func NewOpenRouterModelWithBaseURL(modelName, baseURL, apiKeyEnv string, tempera
 		APIKeyEnv:   apiKeyEnv,
 		Temperature: temperature,
 		MaxTokens:   maxTokens,
+	}
+}
+
+// NewGroqModel creates a new Groq model instance
+func NewGroqModel(modelName string) *groq.Groq_Model {
+	if modelName == "" {
+		modelName = "llama-3.1-70b-versatile"
+	}
+	return &groq.Groq_Model{
+		Model: modelName,
+	}
+}
+
+// NewGroqModelWithOptions creates a new Groq model with full configuration
+func NewGroqModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string) *groq.Groq_Model {
+	if modelName == "" {
+		modelName = "llama-3.1-70b-versatile"
+	}
+	return &groq.Groq_Model{
+		Model:        modelName,
+		Temperature:  temperature,
+		MaxTokens:    maxTokens,
+		SystemPrompt: systemPrompt,
 	}
 }
 
