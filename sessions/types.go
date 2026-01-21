@@ -2,12 +2,15 @@ package sessions
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/stores"
 	"github.com/gorilla/websocket"
+
+	eleven_tts "github.com/Desarso/godantic/elevenlabs/tts/multi"
 )
 
 // AgentError represents errors that can occur during agent operations
@@ -91,11 +94,19 @@ func (rw *ResponseWaiter) WaitForResponse() (string, bool) {
 
 // ProvideResponse provides a response from the frontend
 func (rw *ResponseWaiter) ProvideResponse(response string) bool {
-	rw.mu.Lock()
-	waiting := rw.isWaiting
-	rw.mu.Unlock()
-
-	if waiting {
+	// Important: do NOT require "isWaiting" to be true.
+	// The frontend may ACK very quickly (e.g., Browser_Navigate / Browser_Alert),
+	// and the response can arrive before WaitForResponse() flips the flag.
+	// If we drop that early response, the tool will hang until a timeout.
+	select {
+	case rw.responseChan <- response:
+		return true
+	default:
+		// Channel full (stale response). Drop one and try again.
+		select {
+		case <-rw.responseChan:
+		default:
+		}
 		select {
 		case rw.responseChan <- response:
 			return true
@@ -103,7 +114,6 @@ func (rw *ResponseWaiter) ProvideResponse(response string) bool {
 			return false
 		}
 	}
-	return false
 }
 
 // IsWaiting returns whether the waiter is currently waiting
@@ -135,6 +145,13 @@ type AgentSession struct {
 	ResponseWaiter       *ResponseWaiter
 	FrontendToolExecutor FrontendToolExecutor // Optional: for handling frontend tools
 	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
+
+	// TTS (optional): when enabled, text deltas are forwarded to ElevenLabs and audio chunks are streamed to the client.
+	ttsClient    *eleven_tts.Client
+	ttsContextID string
+	ttsPending   strings.Builder
+	ttsFormat    string
+	ttsVoiceID   string
 }
 
 // HTTPSession handles HTTP-based chat interactions

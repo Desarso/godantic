@@ -1,10 +1,17 @@
 package sessions
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/Desarso/godantic/models"
 	"github.com/google/uuid"
+
+	eleven_tts "github.com/Desarso/godantic/elevenlabs/tts/multi"
 )
 
 // functionCallInfo holds information about a function call
@@ -18,9 +25,30 @@ type functionCallInfo struct {
 
 // RunInteraction handles the complete agent interaction loop
 func (as *AgentSession) RunInteraction(req models.Model_Request) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Keep the input mode stable across tool follow-ups.
+	inputMode := req.Input_Mode
+	if inputMode == "" {
+		inputMode = "text"
+	}
+	// Keep the language stable across tool follow-ups (tool requests omit language_code).
+	voiceLanguageCode := req.Language_Code
+	defer as.shutdownTTS(ctx)
+
 	currentReq := req
 
 	for {
+		if currentReq.Input_Mode == "" {
+			currentReq.Input_Mode = inputMode
+		}
+		if currentReq.Language_Code == "" && voiceLanguageCode != "" {
+			currentReq.Language_Code = voiceLanguageCode
+		} else if currentReq.Language_Code != "" {
+			voiceLanguageCode = currentReq.Language_Code
+		}
+
 		// Fetch latest history
 		if err := as.fetchHistory(); err != nil {
 			return as.sendError("Failed to fetch history", false)
@@ -31,11 +59,21 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 			as.Logger.Printf("Error saving incoming message: %v", err)
 		}
 
+		// Enable TTS streaming only for voice interactions.
+		if strings.EqualFold(inputMode, "voice") {
+			if err := as.ensureTTS(ctx, voiceLanguageCode); err != nil {
+				as.Logger.Printf("TTS init error: %v", err)
+				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
+				// Do not fail the interaction if TTS fails; continue with text-only.
+				as.shutdownTTS(ctx)
+			}
+		}
+
 		// Run agent stream - now we can pass history directly since types match
 		resChan, errChan := as.Agent.Run_Stream(currentReq, as.History)
 
 		// Process stream and accumulate parts
-		accumulatedParts, err := as.processStream(resChan, errChan)
+		accumulatedParts, err := as.processStream(ctx, resChan, errChan)
 		if err != nil {
 			return err
 		}
@@ -58,7 +96,20 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 		}
 	}
 
-	return as.Writer.WriteDone()
+	// Important UX detail:
+	// Send "done" immediately so the frontend stops showing the typing indicator,
+	// but keep the socket open briefly to stream any remaining TTS audio chunks.
+	if err := as.Writer.WriteDone(); err != nil {
+		return err
+	}
+
+	if as.ttsClient != nil {
+		as.ttsFlushPending(ctx)
+		_ = as.ttsClient.CloseSocket(ctx)
+		as.drainTTSUntilFinalOrTimeout(ctx, 30*time.Second)
+	}
+
+	return nil
 }
 
 // fetchHistory retrieves the latest conversation history
@@ -133,10 +184,18 @@ func (as *AgentSession) saveToolResults(toolResults []models.Tool_Result) error 
 }
 
 // processStream handles the agent stream processing
-func (as *AgentSession) processStream(resChan <-chan models.Model_Response, errChan <-chan error) ([]models.Model_Part, error) {
+func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models.Model_Response, errChan <-chan error) ([]models.Model_Part, error) {
 	var accumulated []models.Model_Part
 
+	var ttsEvents <-chan eleven_tts.IncomingMessage
+	var ttsErrs <-chan error
+	if as.ttsClient != nil {
+		ttsEvents = as.ttsClient.Events()
+		ttsErrs = as.ttsClient.Errors()
+	}
+
 	for {
+		// Priority: if a model chunk is ready, handle it first so text stays responsive.
 		select {
 		case chunk, ok := <-resChan:
 			if !ok {
@@ -149,6 +208,37 @@ func (as *AgentSession) processStream(resChan <-chan models.Model_Response, errC
 				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
 			}
 
+			if as.ttsClient != nil {
+				for _, p := range chunk.Parts {
+					if p.Text != nil && *p.Text != "" {
+						as.ttsHandleDelta(ctx, *p.Text)
+					}
+				}
+			}
+			continue
+		default:
+		}
+
+		select {
+		case chunk, ok := <-resChan:
+			if !ok {
+				as.Logger.Printf("Stream finished normally")
+				return accumulated, nil
+			}
+			accumulated = append(accumulated, chunk.Parts...)
+			if err := as.Writer.WriteResponse(chunk); err != nil {
+				as.Logger.Printf("Error writing stream chunk: %v", err)
+				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
+			}
+
+			if as.ttsClient != nil {
+				for _, p := range chunk.Parts {
+					if p.Text != nil && *p.Text != "" {
+						as.ttsHandleDelta(ctx, *p.Text)
+					}
+				}
+			}
+
 		case streamErr, ok := <-errChan:
 			if ok && streamErr != nil {
 				as.Logger.Printf("Stream error: %v", streamErr)
@@ -158,6 +248,16 @@ func (as *AgentSession) processStream(resChan <-chan models.Model_Response, errC
 			if !ok {
 				errChan = nil
 			}
+
+		case ev, ok := <-ttsEvents:
+			if ok {
+				as.forwardTTSEvent(ev)
+			}
+
+		case err, ok := <-ttsErrs:
+			if ok && err != nil {
+				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
+			}
 		}
 
 		if resChan == nil && errChan == nil {
@@ -165,6 +265,228 @@ func (as *AgentSession) processStream(resChan <-chan models.Model_Response, errC
 			return accumulated, nil
 		}
 	}
+}
+
+func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) error {
+	lang := strings.ToLower(strings.TrimSpace(languageCode))
+
+	apiKey := os.Getenv("ELEVEN_LABS_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("ELEVENLABS_API_KEY")
+	}
+	if apiKey == "" {
+		return nil // not configured; silently skip
+	}
+
+	// Pick voice based on language. Defaults:
+	// - EN: ZoiZ8fuDWInAcwPXaVeq
+	// - ES: o2vbTbO3g4GrKUg7rehy
+	voiceID := ""
+	if strings.HasPrefix(lang, "es") {
+		voiceID = os.Getenv("ELEVEN_LABS_TTS_VOICE_ID_ES")
+		if voiceID == "" {
+			voiceID = os.Getenv("ELEVENLABS_TTS_VOICE_ID_ES")
+		}
+		if voiceID == "" {
+			voiceID = "452WrNT9o8dphaYW5YGU"
+		}
+	} else {
+		voiceID = os.Getenv("ELEVEN_LABS_TTS_VOICE_ID")
+		if voiceID == "" {
+			voiceID = os.Getenv("ELEVENLABS_TTS_VOICE_ID")
+		}
+		if voiceID == "" {
+			voiceID = "ZoiZ8fuDWInAcwPXaVeq"
+		}
+	}
+
+	// If TTS is already initialized with a different voice, restart it so we can switch languages mid-session.
+	if as.ttsClient != nil {
+		if as.ttsVoiceID == voiceID {
+			return nil
+		}
+		as.shutdownTTS(ctx)
+	}
+
+	modelID := os.Getenv("ELEVEN_LABS_TTS_MODEL_ID")
+	if modelID == "" {
+		modelID = os.Getenv("ELEVENLABS_TTS_MODEL_ID")
+	}
+	if modelID == "" {
+		modelID = "eleven_flash_v2_5"
+	}
+
+	outputFormat := os.Getenv("ELEVEN_LABS_TTS_OUTPUT_FORMAT")
+	if outputFormat == "" {
+		outputFormat = os.Getenv("ELEVENLABS_TTS_OUTPUT_FORMAT")
+	}
+	if outputFormat == "" {
+		outputFormat = "mp3_44100_128"
+	}
+	as.ttsFormat = outputFormat
+
+	baseURL := os.Getenv("ELEVEN_LABS_BASE_URL")
+	if baseURL == "" {
+		baseURL = os.Getenv("ELEVENLABS_BASE_URL")
+	}
+
+	cfg := eleven_tts.ConnectConfig{
+		BaseURL:      baseURL,
+		VoiceID:      voiceID,
+		APIKey:       apiKey,
+		ModelID:      modelID,
+		OutputFormat: outputFormat,
+	}
+
+	c, err := eleven_tts.Dial(ctx, cfg, http.Header{})
+	if err != nil {
+		return err
+	}
+	as.ttsClient = c
+	as.ttsContextID = uuid.NewString()
+	as.ttsPending.Reset()
+	as.ttsVoiceID = voiceID
+
+	_ = as.Writer.WriteResponse(map[string]any{
+		"type":       "tts_context_started",
+		"context_id": as.ttsContextID,
+		"format":     as.ttsFormat,
+	})
+
+	return as.ttsClient.InitializeContext(ctx, as.ttsContextID)
+}
+
+func (as *AgentSession) shutdownTTS(ctx context.Context) {
+	if as.ttsClient == nil {
+		return
+	}
+	_ = as.ttsClient.Close()
+	as.ttsClient = nil
+	as.ttsContextID = ""
+	as.ttsPending.Reset()
+	as.ttsFormat = ""
+	as.ttsVoiceID = ""
+}
+
+func (as *AgentSession) ttsHandleDelta(ctx context.Context, delta string) {
+	if as.ttsClient == nil || as.ttsContextID == "" {
+		return
+	}
+	as.ttsPending.WriteString(delta)
+
+	s := as.ttsPending.String()
+	cut := lastBoundaryIndex(s)
+	// If no good boundary yet, wait for more (but prevent unbounded buffering).
+	if cut < 0 && len(s) < 140 {
+		return
+	}
+
+	var seg string
+	var rest string
+	if cut >= 0 {
+		seg = s[:cut+1]
+		rest = s[cut+1:]
+	} else {
+		seg = s
+		rest = ""
+	}
+
+	as.ttsPending.Reset()
+	as.ttsPending.WriteString(rest)
+
+	seg = strings.TrimSpace(seg)
+	if seg == "" {
+		return
+	}
+	// ElevenLabs expects a trailing space.
+	if !strings.HasSuffix(seg, " ") {
+		seg += " "
+	}
+	_ = as.ttsClient.SendText(ctx, as.ttsContextID, seg, false)
+}
+
+func (as *AgentSession) ttsFlushPending(ctx context.Context) {
+	if as.ttsClient == nil || as.ttsContextID == "" {
+		return
+	}
+	rest := strings.TrimSpace(as.ttsPending.String())
+	as.ttsPending.Reset()
+	if rest != "" {
+		if !strings.HasSuffix(rest, " ") {
+			rest += " "
+		}
+		_ = as.ttsClient.SendText(ctx, as.ttsContextID, rest, false)
+	}
+	_ = as.ttsClient.Flush(ctx, as.ttsContextID, "")
+}
+
+func (as *AgentSession) drainTTSUntilFinalOrTimeout(ctx context.Context, timeout time.Duration) {
+	if as.ttsClient == nil {
+		return
+	}
+	events := as.ttsClient.Events()
+	errs := as.ttsClient.Errors()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			return
+		case err, ok := <-errs:
+			if ok && err != nil {
+				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
+			}
+		case ev, ok := <-events:
+			if !ok {
+				return
+			}
+			if ev.Kind == "final" {
+				as.forwardTTSEvent(ev)
+				return
+			}
+			as.forwardTTSEvent(ev)
+		}
+	}
+}
+
+func (as *AgentSession) forwardTTSEvent(ev eleven_tts.IncomingMessage) {
+	switch ev.Kind {
+	case "audio":
+		if ev.AudioB64 == "" {
+			return
+		}
+		_ = as.Writer.WriteResponse(map[string]any{
+			"type":       "tts_audio_chunk",
+			"context_id": ev.ContextID,
+			"audio":      ev.AudioB64,
+			"format":     as.ttsFormat,
+		})
+	case "final":
+		_ = as.Writer.WriteResponse(map[string]any{
+			"type":       "tts_context_final",
+			"context_id": ev.ContextID,
+		})
+	default:
+		// ignore unknown
+	}
+}
+
+func lastBoundaryIndex(s string) int {
+	if s == "" {
+		return -1
+	}
+	// Prefer splitting on whitespace or punctuation to avoid "Hel lo" artifacts.
+	for i := len(s) - 1; i >= 0; i-- {
+		c := s[i]
+		if c == ' ' || c == '\n' || c == '\t' || c == '.' || c == '!' || c == '?' || c == ',' || c == ';' || c == ':' {
+			return i
+		}
+	}
+	return -1
 }
 
 // processAccumulatedParts processes accumulated parts for function calls and text

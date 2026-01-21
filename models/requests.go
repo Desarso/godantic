@@ -8,6 +8,12 @@ type Chat_Request struct {
 type Model_Request struct {
 	User_Message *User_Message  `json:"message,omitempty"`
 	Tool_Results *[]Tool_Result `json:"tool_results,omitempty"`
+	// Input_Mode optionally indicates how the user provided the message.
+	// Supported values: "text" (default), "voice".
+	Input_Mode string `json:"input_mode,omitempty"`
+	// Language_Code optionally indicates the user's preferred language.
+	// Supported values: "en" (English, default), "es" (Spanish), etc.
+	Language_Code string `json:"language_code,omitempty"`
 }
 
 type Tool_Result struct {
