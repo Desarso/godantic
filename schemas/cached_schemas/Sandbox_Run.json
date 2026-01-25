@@ -1,0 +1,15 @@
+{
+  "name": "Sandbox_Run",
+  "description": "Sandbox_Run runs JavaScript in a restricted browser sandbox.\n\nExposed API:\n- api.addUser({ email: string, name?: string })\n\nNote: execution is intercepted by ExecuteToolWithContext.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "code"
+    ]
+  }
+}

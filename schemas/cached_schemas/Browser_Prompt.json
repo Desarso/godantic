@@ -1,12 +1,11 @@
 {
   "name": "Browser_Prompt",
-  "description": "Browser_Prompt triggers a prompt dialog in the user's browser that asks for input. The user's response will be sent back to the AI automatically as a new message.",
+  "description": "Browser_Prompt shows a prompt dialog in the user's browser to collect input.\nThis function is never actually called - it exists only for schema generation.\nThe actual execution is intercepted by ExecuteToolWithContext.",
   "parameters": {
     "type": "object",
     "properties": {
       "message": {
-        "type": "string",
-        "description": "The message/question to display in the prompt dialog"
+        "type": "string"
       }
     },
     "required": [

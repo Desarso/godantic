@@ -1,12 +1,11 @@
 {
   "name": "Browser_Alert",
-  "description": "Browser_Alert triggers an alert in the user's browser with the specified message",
+  "description": "Browser_Alert triggers an alert in the user's browser with a custom message.\nThis function is never actually called - it exists only for schema generation.\nThe actual execution is intercepted by ExecuteToolWithContext.",
   "parameters": {
     "type": "object",
     "properties": {
       "message": {
-        "type": "string",
-        "description": "message"
+        "type": "string"
       }
     },
     "required": [
