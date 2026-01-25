@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Desarso/godantic/models"
@@ -23,10 +24,19 @@ type functionCallInfo struct {
 	TextInPart *string
 }
 
-// RunInteraction handles the complete agent interaction loop
+// RunInteraction handles the complete agent interaction loop.
+// Kept for backward compatibility; prefer RunInteractionWithContext so callers can cancel in-flight streams.
 func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	return as.RunInteractionWithContext(ctx, req)
+}
+
+// RunInteractionWithContext runs a single interaction that can be cancelled via ctx.
+// Important:
+// - We keep the ElevenLabs websocket alive across turns (for low overhead),
+// - BUT we create a fresh ElevenLabs context_id per turn so every response reliably produces audio.
+func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req models.Model_Request) error {
 
 	// Keep the input mode stable across tool follow-ups.
 	inputMode := req.Input_Mode
@@ -35,7 +45,6 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 	}
 	// Keep the language stable across tool follow-ups (tool requests omit language_code).
 	voiceLanguageCode := req.Language_Code
-	defer as.shutdownTTS(ctx)
 
 	currentReq := req
 
@@ -66,6 +75,16 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
 				// Do not fail the interaction if TTS fails; continue with text-only.
 				as.shutdownTTS(ctx)
+			} else if as.ttsClient != nil && as.ttsContextID != "" {
+				// IMPORTANT: ElevenLabs enforces a max number of contexts per websocket connection.
+				// Keep ONE context per session and reuse it across turns; just reset our local buffer and
+				// let flush at end-of-turn trigger audio for that turn.
+				as.ttsPending.Reset()
+				_ = as.Writer.WriteResponse(map[string]any{
+					"type":       "tts_context_started",
+					"context_id": as.ttsContextID,
+					"format":     as.ttsFormat,
+				})
 			}
 		}
 
@@ -96,17 +115,23 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 		}
 	}
 
+	// If the client cancelled, don't send "done" (and don't flush TTS).
+	if ctx.Err() != nil {
+		return nil
+	}
+
 	// Important UX detail:
 	// Send "done" immediately so the frontend stops showing the typing indicator,
-	// but keep the socket open briefly to stream any remaining TTS audio chunks.
+	// and let the long-lived TTS forwarder deliver audio chunks asynchronously.
 	if err := as.Writer.WriteDone(); err != nil {
 		return err
 	}
 
-	if as.ttsClient != nil {
-		as.ttsFlushPending(ctx)
-		_ = as.ttsClient.CloseSocket(ctx)
-		as.drainTTSUntilFinalOrTimeout(ctx, 30*time.Second)
+	// Critical: ElevenLabs won't necessarily emit audio until we flush the context.
+	// Previously this happened inline (and blocked the next turn). Now we flush async
+	// so the chat loop can accept the next request immediately, while audio continues streaming.
+	if as.ttsClient != nil && as.ttsContextID != "" {
+		as.flushTTSAsync(as.ttsContextID)
 	}
 
 	return nil
@@ -187,16 +212,11 @@ func (as *AgentSession) saveToolResults(toolResults []models.Tool_Result) error 
 func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models.Model_Response, errChan <-chan error) ([]models.Model_Part, error) {
 	var accumulated []models.Model_Part
 
-	var ttsEvents <-chan eleven_tts.IncomingMessage
-	var ttsErrs <-chan error
-	if as.ttsClient != nil {
-		ttsEvents = as.ttsClient.Events()
-		ttsErrs = as.ttsClient.Errors()
-	}
-
 	for {
 		// Priority: if a model chunk is ready, handle it first so text stays responsive.
 		select {
+		case <-ctx.Done():
+			return accumulated, nil
 		case chunk, ok := <-resChan:
 			if !ok {
 				as.Logger.Printf("Stream finished normally")
@@ -220,6 +240,8 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 		}
 
 		select {
+		case <-ctx.Done():
+			return accumulated, nil
 		case chunk, ok := <-resChan:
 			if !ok {
 				as.Logger.Printf("Stream finished normally")
@@ -249,15 +271,6 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 				errChan = nil
 			}
 
-		case ev, ok := <-ttsEvents:
-			if ok {
-				as.forwardTTSEvent(ev)
-			}
-
-		case err, ok := <-ttsErrs:
-			if ok && err != nil {
-				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
-			}
 		}
 
 		if resChan == nil && errChan == nil {
@@ -270,17 +283,9 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) error {
 	lang := strings.ToLower(strings.TrimSpace(languageCode))
 
-	apiKey := os.Getenv("ELEVEN_LABS_API_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("ELEVENLABS_API_KEY")
-	}
-	if apiKey == "" {
-		return nil // not configured; silently skip
-	}
-
 	// Pick voice based on language. Defaults:
 	// - EN: ZoiZ8fuDWInAcwPXaVeq
-	// - ES: o2vbTbO3g4GrKUg7rehy
+	// - ES: p5EUznrYaWnafKvUkNiR
 	voiceID := ""
 	if strings.HasPrefix(lang, "es") {
 		voiceID = os.Getenv("ELEVEN_LABS_TTS_VOICE_ID_ES")
@@ -288,7 +293,7 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 			voiceID = os.Getenv("ELEVENLABS_TTS_VOICE_ID_ES")
 		}
 		if voiceID == "" {
-			voiceID = "452WrNT9o8dphaYW5YGU"
+			voiceID = "p5EUznrYaWnafKvUkNiR"
 		}
 	} else {
 		voiceID = os.Getenv("ELEVEN_LABS_TTS_VOICE_ID")
@@ -300,9 +305,19 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 		}
 	}
 
+	apiKey := os.Getenv("ELEVEN_LABS_API_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("ELEVENLABS_API_KEY")
+	}
+	if apiKey == "" {
+		return nil // not configured; silently skip
+	}
+
 	// If TTS is already initialized with a different voice, restart it so we can switch languages mid-session.
 	if as.ttsClient != nil {
 		if as.ttsVoiceID == voiceID {
+			// Ensure forwarder is running.
+			as.ensureTTSForwarder()
 			return nil
 		}
 		as.shutdownTTS(ctx)
@@ -338,7 +353,13 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 		OutputFormat: outputFormat,
 	}
 
-	c, err := eleven_tts.Dial(ctx, cfg, http.Header{})
+	// IMPORTANT: Dial ElevenLabs with a session-lifetime context.
+	// The per-interaction ctx is cancelled right after the turn finishes (and on barge-in),
+	// which would kill the TTS client's read/write loops and result in 0 audio chunks.
+	if as.ttsConnCtx == nil {
+		as.ttsConnCtx, as.ttsConnCancel = context.WithCancel(context.Background())
+	}
+	c, err := eleven_tts.Dial(as.ttsConnCtx, cfg, http.Header{})
 	if err != nil {
 		return err
 	}
@@ -346,13 +367,14 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 	as.ttsContextID = uuid.NewString()
 	as.ttsPending.Reset()
 	as.ttsVoiceID = voiceID
+	as.ensureTTSForwarder()
 
+	// Initialize the single long-lived context once per session.
 	_ = as.Writer.WriteResponse(map[string]any{
 		"type":       "tts_context_started",
 		"context_id": as.ttsContextID,
 		"format":     as.ttsFormat,
 	})
-
 	return as.ttsClient.InitializeContext(ctx, as.ttsContextID)
 }
 
@@ -360,12 +382,36 @@ func (as *AgentSession) shutdownTTS(ctx context.Context) {
 	if as.ttsClient == nil {
 		return
 	}
+	// Stop forwarder (if running).
+	if as.ttsForwarderStop != nil {
+		select {
+		case <-as.ttsForwarderStop:
+		default:
+			close(as.ttsForwarderStop)
+		}
+		as.ttsForwarderStop = nil
+		// allow future ensureTTSForwarder()
+		as.ttsForwarderOnce = sync.Once{}
+	}
 	_ = as.ttsClient.Close()
 	as.ttsClient = nil
 	as.ttsContextID = ""
 	as.ttsPending.Reset()
 	as.ttsFormat = ""
 	as.ttsVoiceID = ""
+}
+
+// CloseTTS shuts down the ElevenLabs TTS websocket (best-effort). Safe to call multiple times.
+func (as *AgentSession) CloseTTS() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	as.shutdownTTS(ctx)
+	// End the session-lifetime TTS context to stop any lingering goroutines.
+	if as.ttsConnCancel != nil {
+		as.ttsConnCancel()
+		as.ttsConnCancel = nil
+		as.ttsConnCtx = nil
+	}
 }
 
 func (as *AgentSession) ttsHandleDelta(ctx context.Context, delta string) {
@@ -420,39 +466,6 @@ func (as *AgentSession) ttsFlushPending(ctx context.Context) {
 	_ = as.ttsClient.Flush(ctx, as.ttsContextID, "")
 }
 
-func (as *AgentSession) drainTTSUntilFinalOrTimeout(ctx context.Context, timeout time.Duration) {
-	if as.ttsClient == nil {
-		return
-	}
-	events := as.ttsClient.Events()
-	errs := as.ttsClient.Errors()
-
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-timer.C:
-			return
-		case err, ok := <-errs:
-			if ok && err != nil {
-				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
-			}
-		case ev, ok := <-events:
-			if !ok {
-				return
-			}
-			if ev.Kind == "final" {
-				as.forwardTTSEvent(ev)
-				return
-			}
-			as.forwardTTSEvent(ev)
-		}
-	}
-}
-
 func (as *AgentSession) forwardTTSEvent(ev eleven_tts.IncomingMessage) {
 	switch ev.Kind {
 	case "audio":
@@ -473,6 +486,50 @@ func (as *AgentSession) forwardTTSEvent(ev eleven_tts.IncomingMessage) {
 	default:
 		// ignore unknown
 	}
+}
+
+func (as *AgentSession) flushTTSAsync(contextID string) {
+	// Do not block the request loop; also don't rely on the interaction ctx, which is cancelled
+	// immediately after the handler returns.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		// Best-effort: only flush if we're still on the same context.
+		if as.ttsClient == nil || as.ttsContextID == "" || as.ttsContextID != contextID {
+			return
+		}
+		as.ttsFlushPending(ctx)
+	}()
+}
+
+func (as *AgentSession) ensureTTSForwarder() {
+	as.ttsForwarderOnce.Do(func() {
+		if as.ttsClient == nil {
+			return
+		}
+		as.ttsForwarderStop = make(chan struct{})
+
+		events := as.ttsClient.Events()
+		errs := as.ttsClient.Errors()
+
+		go func() {
+			for {
+				select {
+				case <-as.ttsForwarderStop:
+					return
+				case ev, ok := <-events:
+					if !ok {
+						return
+					}
+					as.forwardTTSEvent(ev)
+				case err, ok := <-errs:
+					if ok && err != nil {
+						_ = as.Writer.WriteResponse(map[string]any{"type": "tts_error", "error": err.Error()})
+					}
+				}
+			}
+		}()
+	})
 }
 
 func lastBoundaryIndex(s string) int {

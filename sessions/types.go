@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"context"
 	"log"
 	"strings"
 	"sync"
@@ -30,9 +31,12 @@ type WebSocketWriter struct {
 	StartTime        time.Time
 	FirstTokenTime   *time.Time
 	FirstTokenLogged bool
+	mu               sync.Mutex
 }
 
 func (w *WebSocketWriter) WriteResponse(resp interface{}) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	// Track time to first token
 	if !w.FirstTokenLogged && w.FirstTokenTime == nil && !w.StartTime.IsZero() {
 		now := time.Now()
@@ -45,10 +49,14 @@ func (w *WebSocketWriter) WriteResponse(resp interface{}) error {
 }
 
 func (w *WebSocketWriter) WriteError(message string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.Conn.WriteJSON(map[string]string{"error": message})
 }
 
 func (w *WebSocketWriter) WriteDone() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	return w.Conn.WriteJSON(map[string]string{"type": "done"})
 }
 
@@ -152,6 +160,15 @@ type AgentSession struct {
 	ttsPending   strings.Builder
 	ttsFormat    string
 	ttsVoiceID   string
+
+	ttsForwarderStop chan struct{}
+	ttsForwarderOnce sync.Once
+
+	// TTS connection lifetime context (must outlive a single interaction).
+	// The per-interaction ctx is cancelled on barge-in / after the turn completes; using it for
+	// the ElevenLabs socket kills audio streaming mid-flight.
+	ttsConnCtx    context.Context
+	ttsConnCancel context.CancelFunc
 }
 
 // HTTPSession handles HTTP-based chat interactions

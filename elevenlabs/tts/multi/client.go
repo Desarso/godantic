@@ -25,10 +25,12 @@ type Client struct {
 	events chan IncomingMessage
 	errors chan error
 
-	sendCh chan any
-	once   sync.Once
-	mu     sync.Mutex
-	closed bool
+	sendCh  chan any
+	closeCh chan struct{}
+	wg      sync.WaitGroup
+	once    sync.Once
+	mu      sync.Mutex
+	closed  bool
 }
 
 func Dial(ctx context.Context, cfg ConnectConfig, headers http.Header) (*Client, error) {
@@ -59,10 +61,11 @@ func Dial(ctx context.Context, cfg ConnectConfig, headers http.Header) (*Client,
 	}
 
 	c := &Client{
-		conn:   conn,
-		events: make(chan IncomingMessage, 256),
-		errors: make(chan error, 16),
-		sendCh: make(chan any, 256),
+		conn:    conn,
+		events:  make(chan IncomingMessage, 256),
+		errors:  make(chan error, 16),
+		sendCh:  make(chan any, 256),
+		closeCh: make(chan struct{}),
 	}
 	c.startLoops(ctx)
 	return c, nil
@@ -77,9 +80,11 @@ func (c *Client) Close() error {
 		c.mu.Lock()
 		c.closed = true
 		c.mu.Unlock()
-		close(c.sendCh)
+		close(c.closeCh)
 		_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(1000, "closing"), time.Now().Add(250*time.Millisecond))
 		err = c.conn.Close()
+		// Ensure all goroutines have stopped sending before closing channels.
+		c.wg.Wait()
 		close(c.events)
 		close(c.errors)
 	})
@@ -88,10 +93,14 @@ func (c *Client) Close() error {
 
 func (c *Client) startLoops(ctx context.Context) {
 	// Writer loop
+	c.wg.Add(1)
 	go func() {
+		defer c.wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
+				return
+			case <-c.closeCh:
 				return
 			case msg, ok := <-c.sendCh:
 				if !ok {
@@ -106,10 +115,14 @@ func (c *Client) startLoops(ctx context.Context) {
 	}()
 
 	// Reader loop
+	c.wg.Add(1)
 	go func() {
+		defer c.wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
+				return
+			case <-c.closeCh:
 				return
 			default:
 			}
@@ -236,6 +249,8 @@ func (c *Client) send(ctx context.Context, v any) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
+	case <-c.closeCh:
+		return fmt.Errorf("tts: client closed")
 	case c.sendCh <- v:
 		return nil
 	}

@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -19,6 +20,7 @@ func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterfac
 		StartTime: time.Now(),
 	}
 
+	ttsConnCtx, ttsConnCancel := context.WithCancel(context.Background())
 	return &AgentSession{
 		Agent:          agent,
 		SessionID:      sessionID,
@@ -26,6 +28,8 @@ func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterfac
 		Store:          store,
 		Logger:         logger,
 		ResponseWaiter: NewResponseWaiter(),
+		ttsConnCtx:     ttsConnCtx,
+		ttsConnCancel:  ttsConnCancel,
 	}
 }
 
