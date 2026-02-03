@@ -48,11 +48,11 @@ func findBun() (string, error) {
 
 // Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun
 // The code is validated and executed by a separate TypeScript file with built-in safety checks
-// Built-in libraries: web (HTTP requests), tavily (search), math (mathjs library)
+// Built-in libraries: web (HTTP requests), tavily (search), math (mathjs library), graph (Microsoft Graph API), skills (manage skill files)
+// Skills API: skills.list(), skills.read(name), skills.create(name, content), skills.edit(name, old, new), skills.remove(name)
 // Safety rules:
 // - 30 second execution timeout
-// - No file system access
-// - No network access
+// - No direct file system access (use skills API for skill files)
 // - No process manipulation
 // - Input validation in TypeScript executor
 func Execute_TypeScript(code string) (string, error) {

@@ -1,6 +1,6 @@
 {
   "name": "Execute_TypeScript",
-  "description": "Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun\nThe code is validated and executed by a separate TypeScript file with built-in safety checks\nBuilt-in libraries: web (HTTP requests), tavily (search), math (mathjs library)\nSafety rules:\n- 30 second execution timeout\n- No file system access\n- No network access\n- No process manipulation\n- Input validation in TypeScript executor",
+  "description": "Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun\nThe code is validated and executed by a separate TypeScript file with built-in safety checks\nBuilt-in libraries: web (HTTP requests), tavily (search), math (mathjs library), graph (Microsoft Graph API), skills (manage skill files)\nSkills API: skills.list(), skills.read(name), skills.create(name, content), skills.edit(name, old, new), skills.remove(name)\nSafety rules:\n- 30 second execution timeout\n- No direct file system access (use skills API for skill files)\n- No process manipulation\n- Input validation in TypeScript executor",
   "parameters": {
     "type": "object",
     "properties": {
