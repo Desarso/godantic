@@ -738,15 +738,22 @@ func (as *AgentSession) sendError(message string, fatal bool) error {
 // saveToMemoryAsync saves content to memory asynchronously (fire-and-forget)
 func (as *AgentSession) saveToMemoryAsync(content string, role string) {
 	if as.Memory == nil {
+		as.Logger.Printf("[SESSION-MEMORY] Memory is nil, skipping save for role=%s", role)
 		return
 	}
+
+	as.Logger.Printf("[SESSION-MEMORY] Queueing async memory save: role=%s contentLen=%d preview='%.200s'", role, len(content), content)
 
 	go func() {
 		contextText := as.buildMemoryContext()
 		if contextText != "" {
+			as.Logger.Printf("[SESSION-MEMORY] Using conversation context for memory (len=%d): '%.300s'", len(contextText), contextText)
 			content = contextText
+		} else {
+			as.Logger.Printf("[SESSION-MEMORY] No conversation context, using raw content")
 		}
 		if content == "" {
+			as.Logger.Printf("[SESSION-MEMORY] SKIPPED: content is empty after context build")
 			return
 		}
 
@@ -755,8 +762,11 @@ func (as *AgentSession) saveToMemoryAsync(content string, role string) {
 			"role":       role,
 			"timestamp":  time.Now().Format(time.RFC3339),
 		}
+		as.Logger.Printf("[SESSION-MEMORY] Calling AddMemory: role=%s contentLen=%d", role, len(content))
 		if err := as.Memory.AddMemory(content, metadata); err != nil {
-			as.Logger.Printf("Memory save error: %v", err)
+			as.Logger.Printf("[SESSION-MEMORY] FAILED to save memory: %v", err)
+		} else {
+			as.Logger.Printf("[SESSION-MEMORY] SUCCESS: saved memory for role=%s", role)
 		}
 	}()
 }

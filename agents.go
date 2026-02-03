@@ -33,16 +33,20 @@ type Agent struct {
 }
 
 // Create_Agent creates an agent with the given model and tools
-func Create_Agent(model Model, tools []models.FunctionDeclaration, memory MemoryManager) Agent {
+func Create_Agent(model Model, tools []models.FunctionDeclaration, memory ...MemoryManager) Agent {
+	var mem MemoryManager
+	if len(memory) > 0 {
+		mem = memory[0]
+	}
 	return Agent{
 		Model:  model,
 		Tools:  tools,
-		Memory: memory,
+		Memory: mem,
 	}
 }
 
 // Create_Agent_From_Config creates an agent from a WSConfig
-func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration, memory MemoryManager) Agent {
+func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration, memory ...MemoryManager) Agent {
 	var model Model
 
 	switch config.Provider {
@@ -76,10 +80,14 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 		}
 	}
 
+	var mem MemoryManager
+	if len(memory) > 0 {
+		mem = memory[0]
+	}
 	return Agent{
 		Model:  model,
 		Tools:  tools,
-		Memory: memory,
+		Memory: mem,
 	}
 }
 
