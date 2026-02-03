@@ -87,6 +87,17 @@ func (s *PostgresStore) SaveMessage(sessionID, role, messageType string, parts i
 		return fmt.Errorf("database connection is nil")
 	}
 
+	// Ensure conversation record exists (create if first message)
+	var convCount int64
+	if err := s.db.Model(&Conversation{}).Where("conversation_id = ?", sessionID).Count(&convCount).Error; err != nil {
+		log.Printf("Warning: Error checking for conversation %s: %v", sessionID, err)
+	} else if convCount == 0 {
+		// Conversation doesn't exist, create it (this is expected for new conversations)
+		if err := s.CreateConversation(sessionID, ""); err != nil {
+			log.Printf("Warning: Failed to create conversation record for %s: %v", sessionID, err)
+		}
+	}
+
 	var count int64
 	if err := s.db.Model(&Message{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to count existing messages: %w", err)
