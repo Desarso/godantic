@@ -1,16 +1,15 @@
 {
   "name": "Read_Skill_File",
-  "description": "Read_Skill_File reads a single markdown file from prompts/skills by name.",
+  "description": "Read_Skill_File reads and returns the contents of a skill markdown file by name.\nThe name should be the filename (e.g. \"browser_navigate.md\").\nChecks custom skills directory first (persisted), then falls back to default skills.",
   "parameters": {
     "type": "object",
     "properties": {
-      "file": {
-        "type": "string",
-        "description": "Skill file name (with or without .md)."
+      "name": {
+        "type": "string"
       }
     },
     "required": [
-      "file"
+      "name"
     ]
   }
 }

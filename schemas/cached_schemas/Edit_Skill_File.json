@@ -1,16 +1,23 @@
 {
   "name": "Edit_Skill_File",
-  "description": "Edit_Skill_File performs a find-and-replace on a skill file. The request argument must be JSON: {\"file\":\"name.md\",\"find\":\"...\",\"replace\":\"...\"}.",
+  "description": "Edit_Skill_File performs a find-and-replace in a skill markdown file.\nReplaces the first occurrence of old_text with new_text in the specified file.\nReads from custom or default skills, but always writes to custom skills directory.",
   "parameters": {
     "type": "object",
     "properties": {
-      "request": {
-        "type": "string",
-        "description": "JSON string with file and content fields."
+      "name": {
+        "type": "string"
+      },
+      "new_text": {
+        "type": "string"
+      },
+      "old_text": {
+        "type": "string"
       }
     },
     "required": [
-      "request"
+      "name",
+      "new_text",
+      "old_text"
     ]
   }
 }

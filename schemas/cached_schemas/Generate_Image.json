@@ -1,6 +1,6 @@
 {
   "name": "Generate_Image",
-  "description": "Generate_Image generates an image using Gemini's image generation model\nReturns a markdown formatted image with the URL",
+  "description": "Generate_Image generates an image using Gemini's image generation model\nSaves the image to a file and returns a markdown formatted URL",
   "parameters": {
     "type": "object",
     "properties": {

@@ -19,17 +19,21 @@ var GetSkillsDirs = func() []string {
 }
 
 // List_Skill_Files lists all available skill markdown files from both default and custom directories.
-// Returns a newline-separated list of filenames (prefixed with [custom] for custom skills).
+// Returns a newline-separated list of filenames. Custom skills that override defaults are marked [custom].
+// Custom-only skills (not overriding anything) are marked [custom-only].
 func List_Skill_Files() (string, error) {
-	var files []string
 	var searchedDirs []string
 	var errors []string
-	seen := make(map[string]bool)
+
+	// Track files from default dirs and custom dir separately
+	defaultFiles := make(map[string]bool)
+	customFiles := make(map[string]bool)
 
 	skillsDirs := GetSkillsDirs()
 
-	for i, skillsDir := range skillsDirs {
-		isCustom := i == len(skillsDirs)-1 // Last directory is custom skills
+	// First pass: collect all files, tracking source
+	for _, skillsDir := range skillsDirs {
+		isCustomDir := strings.Contains(skillsDir, "custom_skills")
 		searchedDirs = append(searchedDirs, skillsDir)
 
 		entries, err := os.ReadDir(skillsDir)
@@ -48,16 +52,35 @@ func List_Skill_Files() (string, error) {
 			}
 			name := entry.Name()
 			if strings.HasSuffix(strings.ToLower(name), ".md") {
-				// Avoid duplicates (custom skills can override default)
-				if !seen[name] {
-					seen[name] = true
-					if isCustom {
-						files = append(files, name+" [custom]")
-					} else {
-						files = append(files, name)
-					}
+				if isCustomDir {
+					customFiles[name] = true
+				} else {
+					defaultFiles[name] = true
 				}
 			}
+		}
+	}
+
+	// Build result list with proper labels
+	var files []string
+	seen := make(map[string]bool)
+
+	// Add custom files first (they have priority)
+	for name := range customFiles {
+		seen[name] = true
+		if defaultFiles[name] {
+			// Custom file overrides a default
+			files = append(files, name+" [custom override]")
+		} else {
+			// Custom-only file
+			files = append(files, name+" [custom]")
+		}
+	}
+
+	// Add default files that aren't overridden
+	for name := range defaultFiles {
+		if !seen[name] {
+			files = append(files, name)
 		}
 	}
 

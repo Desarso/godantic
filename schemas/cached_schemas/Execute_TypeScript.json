@@ -1,6 +1,6 @@
 {
   "name": "Execute_TypeScript",
-  "description": "Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun\nThe code is validated and executed by a separate TypeScript file with built-in safety checks\nSafety rules:\n- 30 second execution timeout\n- No file system access\n- No network access\n- No process manipulation\n- Input validation in TypeScript executor",
+  "description": "Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun\nThe code is validated and executed by a separate TypeScript file with built-in safety checks\nBuilt-in libraries: web (HTTP requests), tavily (search), math (mathjs library)\nSafety rules:\n- 30 second execution timeout\n- No file system access\n- No network access\n- No process manipulation\n- Input validation in TypeScript executor",
   "parameters": {
     "type": "object",
     "properties": {

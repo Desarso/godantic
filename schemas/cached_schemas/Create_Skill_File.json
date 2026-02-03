@@ -1,0 +1,19 @@
+{
+  "name": "Create_Skill_File",
+  "description": "Create_Skill_File creates a new skill file in the custom skills directory.\nThis is for agent-created skills that persist across deploys.\nThe skill name must be unique and will be saved as a .md file.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "content": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "content",
+      "name"
+    ]
+  }
+}

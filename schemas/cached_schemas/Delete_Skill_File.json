@@ -1,0 +1,15 @@
+{
+  "name": "Delete_Skill_File",
+  "description": "Delete_Skill_File deletes a skill file from the custom skills directory.\nIMPORTANT: This can ONLY delete skills from the custom skills directory (data/custom_skills/).\nIt CANNOT delete default/system skills - those are protected.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }
+}

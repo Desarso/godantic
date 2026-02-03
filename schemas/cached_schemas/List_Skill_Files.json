@@ -1,16 +1,7 @@
 {
   "name": "List_Skill_Files",
-  "description": "List_Skill_Files lists markdown files under prompts/skills.\nThe filter argument is optional and matched as a case-insensitive substring.",
+  "description": "List_Skill_Files lists all available skill markdown files from both default and custom directories.\nReturns a newline-separated list of filenames. Custom skills that override defaults are marked [custom].\nCustom-only skills (not overriding anything) are marked [custom-only].",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "filter": {
-        "type": "string",
-        "description": "Optional case-insensitive substring filter."
-      }
-    },
-    "required": [
-      "filter"
-    ]
+    "type": "object"
   }
 }
