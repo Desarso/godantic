@@ -20,6 +20,19 @@ type MemoryManager interface {
 	RetrieveMemories(queryText string, limit int) ([]string, error)
 }
 
+// FlowLogger interface for logging message flow events
+// Implement this interface and set it on AgentSession.FlowLogger to receive flow events
+type FlowLogger interface {
+	// LogUserMessage is called when a user message is received
+	LogUserMessage(sessionID string, text string)
+	// LogAgentMessage is called when the agent produces a text response
+	LogAgentMessage(sessionID string, text string)
+	// LogToolCall is called when a tool is about to be executed
+	LogToolCall(sessionID string, toolName string, args map[string]interface{})
+	// LogToolResult is called when a tool returns a result
+	LogToolResult(sessionID string, toolName string, resultPreview string)
+}
+
 // AgentError represents errors that can occur during agent operations
 type AgentError struct {
 	Message string
@@ -161,6 +174,7 @@ type AgentSession struct {
 	FrontendToolExecutor FrontendToolExecutor // Optional: for handling frontend tools
 	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
 	Memory               MemoryManager        // Optional: for memory storage and retrieval
+	FlowLogger           FlowLogger           // Optional: for logging message flow events
 
 	// TTS (optional): when enabled, text deltas are forwarded to ElevenLabs and audio chunks are streamed to the client.
 	ttsClient    *eleven_tts.Client

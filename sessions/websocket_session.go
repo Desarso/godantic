@@ -187,6 +187,11 @@ func (as *AgentSession) saveUserMessage(userMsg *models.User_Message) error {
 		userPartsToSave = append(userPartsToSave, models.User_Part{Text: userText})
 	}
 
+	// Log user message flow
+	if as.FlowLogger != nil && userText != "" {
+		as.FlowLogger.LogUserMessage(as.SessionID, userText)
+	}
+
 	return as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "user", "user_message", userPartsToSave, "")
 }
 
@@ -631,6 +636,11 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 		}
 
 	} else if finalText != "" {
+		// Log agent message flow
+		if as.FlowLogger != nil {
+			as.FlowLogger.LogAgentMessage(as.SessionID, finalText)
+		}
+
 		// Save text-only response
 		textPart := models.Model_Part{Text: &finalText}
 		if err := as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "model", "model_message", []models.Model_Part{textPart}, ""); err != nil {
@@ -687,14 +697,20 @@ func (as *AgentSession) checkAndExecuteTool(fc functionCallInfo) (bool, error) {
 
 // executeTool executes a tool and returns the result
 func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
-	// Check FrontendToolExecutor first if it exists and this is a frontend tool
-	if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
-		return as.FrontendToolExecutor.ExecuteFrontendTool(fc.Name, fc.Args)
+	// Log tool call
+	if as.FlowLogger != nil {
+		as.FlowLogger.LogToolCall(as.SessionID, fc.Name, fc.Args)
 	}
 
-	// If a custom tool executor is set (for frontend tools), use it
-	if as.ToolExecutor != nil {
-		return as.ToolExecutor(
+	var result string
+	var err error
+
+	// Check FrontendToolExecutor first if it exists and this is a frontend tool
+	if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
+		result, err = as.FrontendToolExecutor.ExecuteFrontendTool(fc.Name, fc.Args)
+	} else if as.ToolExecutor != nil {
+		// If a custom tool executor is set (for frontend tools), use it
+		result, err = as.ToolExecutor(
 			fc.Name,
 			fc.Args,
 			as.Agent,
@@ -703,10 +719,21 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 			as.ResponseWaiter,
 			as.Logger,
 		)
+	} else {
+		// Otherwise, use the standard agent ExecuteTool
+		result, err = as.Agent.ExecuteTool(fc.Name, fc.Args, as.SessionID)
 	}
 
-	// Otherwise, use the standard agent ExecuteTool
-	return as.Agent.ExecuteTool(fc.Name, fc.Args, as.SessionID)
+	// Log tool result
+	if as.FlowLogger != nil {
+		preview := result
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		as.FlowLogger.LogToolResult(as.SessionID, fc.Name, preview)
+	}
+
+	return result, err
 }
 
 // sendToolResult sends a tool result to the WebSocket client
