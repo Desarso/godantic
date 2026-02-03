@@ -268,36 +268,50 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 				break
 			}
 			funcType := callableFunc.Type()
-			// Validate signature: func(string) (string, error)
-			if !(funcType.NumIn() == 1 && funcType.In(0).Kind() == reflect.String &&
-				funcType.NumOut() == 2 && funcType.Out(0).Kind() == reflect.String &&
+
+			// Validate return signature: must return (string, error)
+			if !(funcType.NumOut() == 2 && funcType.Out(0).Kind() == reflect.String &&
 				funcType.Out(1).Implements(reflect.TypeOf((*error)(nil)).Elem())) {
-				toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible signature", functionName)
+				toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible return signature", functionName)
 				break
 			}
 
-			// Argument Extraction
-			var stringArg string
-			if len(functionCallArgs) != 1 {
-				toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
-				break
-			}
-			var argName string
-			var argValueInterface interface{}
-			for key, val := range functionCallArgs { // Get the single key/value
-				argName = key
-				argValueInterface = val
-				break
-			}
-			var ok bool
-			stringArg, ok = argValueInterface.(string)
-			if !ok {
-				toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, argName, argValueInterface)
+			var argsToPass []reflect.Value
+
+			// Handle different input signatures
+			if funcType.NumIn() == 0 {
+				// No parameters: func() (string, error)
+				argsToPass = []reflect.Value{}
+			} else if funcType.NumIn() == 1 && funcType.In(0).Kind() == reflect.String {
+				// Single string parameter: func(string) (string, error)
+				var stringArg string
+				if len(functionCallArgs) == 0 {
+					stringArg = "" // Allow empty args for single-param functions
+				} else if len(functionCallArgs) == 1 {
+					var argName string
+					var argValueInterface interface{}
+					for key, val := range functionCallArgs {
+						argName = key
+						argValueInterface = val
+						break
+					}
+					var ok bool
+					stringArg, ok = argValueInterface.(string)
+					if !ok {
+						toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, argName, argValueInterface)
+						break
+					}
+				} else {
+					toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
+					break
+				}
+				argsToPass = []reflect.Value{reflect.ValueOf(stringArg)}
+			} else {
+				toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible input signature (expected 0 or 1 string param)", functionName)
 				break
 			}
 
 			// Call Function
-			argsToPass := []reflect.Value{reflect.ValueOf(stringArg)}
 			results := callableFunc.Call(argsToPass)
 
 			// Process results (string, error)
