@@ -207,3 +207,29 @@ func (s *SQLiteStore) ListConversations() ([]string, error) {
 
 	return ids, nil
 }
+
+// ListConversationsForUser returns all conversations with details for a specific user
+func (s *SQLiteStore) ListConversationsForUser(userID string) ([]ConversationInfo, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("database connection is nil")
+	}
+
+	var convs []Conversation
+	if err := s.db.Where("user_id = ?", userID).Order("updated_at DESC").Find(&convs).Error; err != nil {
+		return nil, fmt.Errorf("failed to fetch conversations: %w", err)
+	}
+
+	result := make([]ConversationInfo, len(convs))
+	for i, c := range convs {
+		result[i] = ConversationInfo{
+			ConversationID: c.ConversationID,
+			UserID:         c.UserID,
+			Title:          c.Title,
+			MessageCount:   c.MessageCount,
+			CreatedAt:      c.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:      c.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	return result, nil
+}

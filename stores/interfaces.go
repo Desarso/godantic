@@ -25,8 +25,19 @@ type Conversation struct {
 	gorm.Model
 	ConversationID string    `gorm:"uniqueIndex;not null"`
 	UserID         string    `gorm:"index;not null"`
+	Title          string    `gorm:"type:text"` // Conversation title (migrated from old system or AI-generated)
 	MessageCount   int       `gorm:"default:0"`
 	Messages       []Message `gorm:"foreignKey:ConversationID;references:ConversationID"`
+}
+
+// ConversationInfo holds basic conversation metadata for listing
+type ConversationInfo struct {
+	ConversationID string
+	UserID         string
+	Title          string
+	MessageCount   int
+	CreatedAt      string
+	UpdatedAt      string
 }
 
 // MessageStore interface for abstracting database operations
@@ -38,6 +49,7 @@ type MessageStore interface {
 	// Conversation operations
 	CreateConversation(convoID, userID string) error
 	ListConversations() ([]string, error)
+	ListConversationsForUser(userID string) ([]ConversationInfo, error) // Returns conversations with details for a user
 
 	// Connection management
 	Connect() error
