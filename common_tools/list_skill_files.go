@@ -1,6 +1,7 @@
 package common_tools
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,20 +22,24 @@ var GetSkillsDirs = func() []string {
 // Returns a newline-separated list of filenames (prefixed with [custom] for custom skills).
 func List_Skill_Files() (string, error) {
 	var files []string
+	var searchedDirs []string
+	var errors []string
 	seen := make(map[string]bool)
 
 	skillsDirs := GetSkillsDirs()
 
 	for i, skillsDir := range skillsDirs {
 		isCustom := i == len(skillsDirs)-1 // Last directory is custom skills
+		searchedDirs = append(searchedDirs, skillsDir)
 
 		entries, err := os.ReadDir(skillsDir)
 		if err != nil {
-			// Skip if directory doesn't exist (custom_skills may not exist yet)
 			if os.IsNotExist(err) {
-				continue
+				errors = append(errors, fmt.Sprintf("%s: does not exist", skillsDir))
+			} else {
+				errors = append(errors, fmt.Sprintf("%s: %v", skillsDir, err))
 			}
-			continue // Skip other errors too, don't fail completely
+			continue
 		}
 
 		for _, entry := range entries {
@@ -57,7 +62,10 @@ func List_Skill_Files() (string, error) {
 	}
 
 	if len(files) == 0 {
-		return "(No skill files found)", nil
+		// Return debug info when no files found
+		return fmt.Sprintf("(No skill files found)\nSearched: %s\nErrors: %s",
+			strings.Join(searchedDirs, ", "),
+			strings.Join(errors, "; ")), nil
 	}
 
 	return strings.Join(files, "\n"), nil
