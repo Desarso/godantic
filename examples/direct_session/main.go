@@ -16,7 +16,6 @@ func main() {
 
 	// Create agent
 	tools, err := godantic.Create_Tools([]interface{}{
-		common_tools.GetWeather,
 		common_tools.Search,
 	})
 	if err != nil {
@@ -25,7 +24,7 @@ func main() {
 
 	agent := godantic.Create_Agent(&gemini.Gemini_Model{
 		Model: "gemini-2.0-flash",
-	}, tools)
+	}, tools, nil)
 
 	// Create store
 	store, err := stores.NewSQLiteStoreSimple("direct_session.sqlite")

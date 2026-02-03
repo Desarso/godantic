@@ -16,10 +16,11 @@ type SSEWriter = sessions.SSEWriter
 type ResponseWaiter = sessions.ResponseWaiter
 type AgentInterface = sessions.AgentInterface
 type ToolExecutorFunc = sessions.ToolExecutorFunc
+type MemoryManager = sessions.MemoryManager
 
 // Re-export constructor functions
-func NewAgentSession(sessionID string, conn *websocket.Conn, agent *Agent, store stores.MessageStore) *AgentSession {
-	return sessions.NewAgentSession(sessionID, conn, agent, store)
+func NewAgentSession(sessionID string, conn *websocket.Conn, agent *Agent, store stores.MessageStore, memory MemoryManager) *AgentSession {
+	return sessions.NewAgentSession(sessionID, conn, agent, store, memory)
 }
 
 func NewHTTPSession(conversationID string, agent *Agent, store stores.MessageStore) *HTTPSession {

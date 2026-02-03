@@ -121,7 +121,6 @@ func createWSController() *controllers.WS_controllers {
     config := godantic.NewWSConfig().
         WithModelName("gemini-2.0-flash").
         WithTools([]interface{}{
-            common_tools.GetWeather,
             common_tools.Search,
             common_tools.Brave_Search,
         }).

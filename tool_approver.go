@@ -4,7 +4,6 @@ import "log"
 
 // List of tools that don't require explicit user approval
 var autoApprovedTools = map[string]bool{
-	"GetWeather": true,
 	// Add other auto-approved tool names here
 }
 

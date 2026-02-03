@@ -118,7 +118,6 @@ config := godantic.NewWSConfig().
     WithModelName("gemini-2.0-flash").
     WithSQLiteStore("chat.sqlite").
     WithTools([]interface{}{
-        common_tools.GetWeather,
         common_tools.Search,
     })
 ```

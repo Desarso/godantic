@@ -132,13 +132,30 @@ func (s *PostgresStore) SaveMessage(sessionID, role, messageType string, parts i
 }
 
 // FetchHistory retrieves messages for a conversation in sequence order
-func (s *PostgresStore) FetchHistory(sessionID string) ([]Message, error) {
+// limit: maximum number of messages to retrieve (0 = return all messages)
+func (s *PostgresStore) FetchHistory(sessionID string, limit int) ([]Message, error) {
 	if s.db == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
 
 	var msgs []Message
-	if err := s.db.Where("conversation_id = ?", sessionID).Order("sequence asc").Find(&msgs).Error; err != nil {
+	query := s.db.Where("conversation_id = ?", sessionID).Order("sequence ASC")
+
+	if limit > 0 {
+		// Get total count first
+		var count int64
+		if err := s.db.Model(&Message{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
+			return nil, fmt.Errorf("failed to count messages: %w", err)
+		}
+
+		// If more than limit, offset to get only last N messages
+		if count > int64(limit) {
+			offset := int(count) - limit
+			query = query.Offset(offset)
+		}
+	}
+
+	if err := query.Find(&msgs).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 

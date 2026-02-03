@@ -1,4 +1,4 @@
-package groq
+package cerebras
 
 import (
 	"bufio"
@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	GroqBaseURL  = "https://api.groq.com/openai/v1/chat/completions"
-	DefaultModel = "llama-3.1-70b-versatile"
+	CerebrasBaseURL = "https://api.cerebras.ai/v1/chat/completions"
+	DefaultModel    = "llama-3.3-70b"
 )
 
 var (
@@ -37,19 +37,21 @@ func init() {
 	}
 }
 
-// Groq_Model implements the Model interface for Groq API
-// Groq uses OpenAI-compatible API format
-type Groq_Model struct {
-	Model        string // Model identifier (e.g., "llama-3.1-70b-versatile", "mixtral-8x7b-32768")
+// Cerebras_Model implements the Model interface for Cerebras API
+// Cerebras uses OpenAI-compatible API format
+type Cerebras_Model struct {
+	Model        string // Model identifier (e.g., "llama-3.3-70b")
 	Temperature  *float64
 	MaxTokens    *int
 	SystemPrompt string // Optional: System prompt for the AI
-	BaseURL      string // Optional: Custom API base URL (defaults to Groq)
-	APIKeyEnv    string // Optional: Environment variable name for API key (defaults to GROQ_API_KEY)
+	BaseURL      string // Optional: Custom API base URL (defaults to Cerebras)
+	APIKeyEnv    string // Optional: Environment variable name for API key (defaults to CEREBRAS_API_KEY)
+	TopP         *float64
+	Seed         *int
 }
 
 // Model_Request implements the Model interface
-func (g *Groq_Model) Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (models.Model_Response, error) {
+func (c *Cerebras_Model) Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (models.Model_Response, error) {
 	if request.User_Message == nil && request.Tool_Results == nil {
 		return models.Model_Response{}, fmt.Errorf("request must contain either user message or tool results")
 	}
@@ -61,21 +63,21 @@ func (g *Groq_Model) Model_Request(request models.Model_Request, tools []models.
 		msg = models.User_Message{}
 	}
 
-	modelToUse := g.Model
+	modelToUse := c.Model
 	if modelToUse == "" {
 		modelToUse = DefaultModel
 	}
 
-	groqResponse, err := g.makeRequest(modelToUse, msg, tools, request.Tool_Results, conversationHistory)
+	cerebrasResponse, err := c.makeRequest(modelToUse, msg, tools, request.Tool_Results, conversationHistory)
 	if err != nil {
 		return models.Model_Response{}, err
 	}
 
-	return g.groqResponseToModelResponse(groqResponse)
+	return c.cerebrasResponseToModelResponse(cerebrasResponse)
 }
 
 // Stream_Model_Request implements the Model interface for streaming
-func (g *Groq_Model) Stream_Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (<-chan models.Model_Response, <-chan error) {
+func (c *Cerebras_Model) Stream_Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (<-chan models.Model_Response, <-chan error) {
 	if request.User_Message == nil && request.Tool_Results == nil {
 		errChan := make(chan error, 1)
 		respChan := make(chan models.Model_Response)
@@ -92,16 +94,16 @@ func (g *Groq_Model) Stream_Model_Request(request models.Model_Request, tools []
 		msg = models.User_Message{}
 	}
 
-	modelToUse := g.Model
+	modelToUse := c.Model
 	if modelToUse == "" {
 		modelToUse = DefaultModel
 	}
 
-	return g.makeStreamRequest(modelToUse, msg, tools, request.Tool_Results, conversationHistory)
+	return c.makeStreamRequest(modelToUse, msg, tools, request.Tool_Results, conversationHistory)
 }
 
-// groqResponseToModelResponse converts Groq response to the standard Model_Response
-func (g *Groq_Model) groqResponseToModelResponse(response GroqResponse) (models.Model_Response, error) {
+// cerebrasResponseToModelResponse converts Cerebras response to the standard Model_Response
+func (c *Cerebras_Model) cerebrasResponseToModelResponse(response CerebrasResponse) (models.Model_Response, error) {
 	modelResponse := models.Model_Response{}
 
 	for _, choice := range response.Choices {
@@ -141,66 +143,105 @@ func (g *Groq_Model) groqResponseToModelResponse(response GroqResponse) (models.
 	return modelResponse, nil
 }
 
-// makeRequest sends a non-streaming request to Groq
-func (g *Groq_Model) makeRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (GroqResponse, error) {
-	requestBody, err := g.createGroqRequest(model, message, tools, toolResults, conversationHistory, false)
+// makeRequest sends a non-streaming request to Cerebras
+func (c *Cerebras_Model) makeRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (CerebrasResponse, error) {
+	requestBody, err := c.createCerebrasRequest(model, message, tools, toolResults, conversationHistory, false)
 	if err != nil {
-		return GroqResponse{}, fmt.Errorf("failed to create Groq request: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("failed to create Cerebras request: %w", err)
 	}
 
 	jsonBytes, err := json.Marshal(requestBody)
 	if err != nil {
-		return GroqResponse{}, fmt.Errorf("failed to marshal request body: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
 	// Debug: save request body
-	if err := os.WriteFile("groq_request_body.json", jsonBytes, 0644); err != nil {
+	if err := os.WriteFile("cerebras_request_body.json", jsonBytes, 0644); err != nil {
 		log.Printf("Warning: failed to write request body to file: %v", err)
 	}
 
-	// Use custom base URL if provided, otherwise use Groq
-	baseURL := g.BaseURL
+	// Use custom base URL if provided, otherwise use Cerebras
+	baseURL := c.BaseURL
 	if baseURL == "" {
-		baseURL = GroqBaseURL
+		baseURL = CerebrasBaseURL
 	}
 
 	req, err := http.NewRequest("POST", baseURL, bytes.NewReader(jsonBytes))
 	if err != nil {
-		return GroqResponse{}, fmt.Errorf("failed to create HTTP request: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	g.setHeaders(req)
+	c.setHeaders(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return GroqResponse{}, fmt.Errorf("HTTP request failed: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return GroqResponse{}, fmt.Errorf("failed to read response body: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		var errResp ErrorResponse
-		if err := json.Unmarshal(body, &errResp); err == nil {
-			return GroqResponse{}, fmt.Errorf("Groq API error: %s (type: %s)", errResp.Error.Message, errResp.Error.Type)
+		if resp.StatusCode != http.StatusOK {
+			bodyStr := string(body)
+			
+			// Log the raw response for debugging
+			log.Printf("Cerebras API error response (status %d): %s", resp.StatusCode, bodyStr)
+			
+			// Try to parse as structured error response
+			var errResp ErrorResponse
+			if err := json.Unmarshal(body, &errResp); err == nil {
+				// Successfully parsed error response
+				errorMsg := fmt.Sprintf("Cerebras API error (status %d)", resp.StatusCode)
+				
+				// Add message if available
+				message := strings.TrimSpace(errResp.Message)
+				if message != "" {
+					errorMsg += fmt.Sprintf(": %s", message)
+				} else {
+					errorMsg += ": (no error message provided)"
+				}
+				
+				// Add type if available
+				if errResp.Type != "" {
+					errorMsg += fmt.Sprintf(" (type: %s)", errResp.Type)
+				}
+				
+				// Add code if available
+				if errResp.Code != "" {
+					errorMsg += fmt.Sprintf(" (code: %s)", errResp.Code)
+				}
+				
+				// If we have a body but no useful parsed info, include raw body for debugging
+				if message == "" && errResp.Type == "" && bodyStr != "" {
+					errorMsg += fmt.Sprintf(" - Raw response: %s", bodyStr)
+				}
+				
+				log.Printf("Parsed Cerebras error: %+v", errResp)
+				return CerebrasResponse{}, fmt.Errorf(errorMsg)
+			}
+			
+			// Failed to parse as JSON - show raw response
+			log.Printf("Failed to parse Cerebras error response as JSON: %v, body: %s", err, bodyStr)
+			if bodyStr == "" {
+				bodyStr = "(empty response body)"
+			}
+			return CerebrasResponse{}, fmt.Errorf("Cerebras API error (status %d): %s", resp.StatusCode, bodyStr)
 		}
-		return GroqResponse{}, fmt.Errorf("Groq API error: status %d, body: %s", resp.StatusCode, string(body))
-	}
 
-	var response GroqResponse
+	var response CerebrasResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return GroqResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
+		return CerebrasResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	return response, nil
 }
 
-// makeStreamRequest sends a streaming request to Groq
-func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (<-chan models.Model_Response, <-chan error) {
+// makeStreamRequest sends a streaming request to Cerebras
+func (c *Cerebras_Model) makeStreamRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (<-chan models.Model_Response, <-chan error) {
 	respChan := make(chan models.Model_Response)
 	errChan := make(chan error, 1)
 
@@ -208,9 +249,9 @@ func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message
 		defer close(respChan)
 		defer close(errChan)
 
-		requestBody, err := g.createGroqRequest(model, message, tools, toolResults, conversationHistory, true)
+		requestBody, err := c.createCerebrasRequest(model, message, tools, toolResults, conversationHistory, true)
 		if err != nil {
-			errChan <- fmt.Errorf("failed to create Groq request: %w", err)
+			errChan <- fmt.Errorf("failed to create Cerebras request: %w", err)
 			return
 		}
 
@@ -221,12 +262,12 @@ func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message
 		}
 
 		// Request body logging disabled - enable for debugging if needed
-		// log.Printf("Groq Stream Request Body:\n%s", string(jsonBytes))
+		// log.Printf("Cerebras Stream Request Body:\n%s", string(jsonBytes))
 
-		// Use custom base URL if provided, otherwise use Groq
-		baseURL := g.BaseURL
+		// Use custom base URL if provided, otherwise use Cerebras
+		baseURL := c.BaseURL
 		if baseURL == "" {
-			baseURL = GroqBaseURL
+			baseURL = CerebrasBaseURL
 		}
 
 		req, err := http.NewRequest("POST", baseURL, bytes.NewReader(jsonBytes))
@@ -235,7 +276,7 @@ func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message
 			return
 		}
 
-		g.setHeaders(req)
+		c.setHeaders(req)
 
 		client := &http.Client{}
 		resp, err := client.Do(req)
@@ -246,12 +287,53 @@ func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
+			body, readErr := io.ReadAll(resp.Body)
+			bodyStr := string(body)
+			
+			// Log the raw response for debugging
+			log.Printf("Cerebras API error response (status %d): %s", resp.StatusCode, bodyStr)
+			
+			// Try to parse as structured error response
 			var errResp ErrorResponse
 			if err := json.Unmarshal(body, &errResp); err == nil {
-				errChan <- fmt.Errorf("Groq API error: %s (type: %s)", errResp.Error.Message, errResp.Error.Type)
+				// Successfully parsed error response
+				errorMsg := fmt.Sprintf("Cerebras API error (status %d)", resp.StatusCode)
+				
+				// Add message if available
+				message := strings.TrimSpace(errResp.Message)
+				if message != "" {
+					errorMsg += fmt.Sprintf(": %s", message)
+				} else {
+					errorMsg += ": (no error message provided)"
+				}
+				
+				// Add type if available
+				if errResp.Type != "" {
+					errorMsg += fmt.Sprintf(" (type: %s)", errResp.Type)
+				}
+				
+				// Add code if available
+				if errResp.Code != "" {
+					errorMsg += fmt.Sprintf(" (code: %s)", errResp.Code)
+				}
+				
+				// If we have a body but no useful parsed info, include raw body for debugging
+				if message == "" && errResp.Type == "" && bodyStr != "" {
+					errorMsg += fmt.Sprintf(" - Raw response: %s", bodyStr)
+				}
+				
+				log.Printf("Parsed Cerebras error: %+v", errResp)
+				errChan <- fmt.Errorf(errorMsg)
 			} else {
-				errChan <- fmt.Errorf("Groq API error: status %d, body: %s", resp.StatusCode, string(body))
+				// Failed to parse as JSON - show raw response
+				log.Printf("Failed to parse Cerebras error response as JSON: %v, body: %s", err, bodyStr)
+				if readErr != nil {
+					errChan <- fmt.Errorf("Cerebras API error (status %d): failed to read response body: %w", resp.StatusCode, readErr)
+				} else if bodyStr == "" {
+					errChan <- fmt.Errorf("Cerebras API error (status %d): empty response body", resp.StatusCode)
+				} else {
+					errChan <- fmt.Errorf("Cerebras API error (status %d): %s", resp.StatusCode, bodyStr)
+				}
 			}
 			return
 		}
@@ -379,33 +461,33 @@ func (g *Groq_Model) makeStreamRequest(model string, message models.User_Message
 	return respChan, errChan
 }
 
-// setHeaders sets the required headers for Groq API requests
-func (g *Groq_Model) setHeaders(req *http.Request) {
-	// Use custom API key environment variable if provided, otherwise use GROQ_API_KEY
-	apiKeyEnv := g.APIKeyEnv
+// setHeaders sets the required headers for Cerebras API requests
+func (c *Cerebras_Model) setHeaders(req *http.Request) {
+	// Use custom API key environment variable if provided, otherwise use CEREBRAS_API_KEY
+	apiKeyEnv := c.APIKeyEnv
 	if apiKeyEnv == "" {
-		apiKeyEnv = "GROQ_API_KEY"
+		apiKeyEnv = "CEREBRAS_API_KEY"
 	}
 	apiKey := os.Getenv(apiKeyEnv)
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 }
 
-// createGroqRequest builds the request body for Groq API
-func (g *Groq_Model) createGroqRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, stream bool) (GroqRequest, error) {
+// createCerebrasRequest builds the request body for Cerebras API
+func (c *Cerebras_Model) createCerebrasRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, stream bool) (CerebrasRequest, error) {
 	messages := []Message{}
 
 	// Add system prompt as first message if provided
-	if g.SystemPrompt != "" {
+	if c.SystemPrompt != "" {
 		messages = append(messages, Message{
 			Role:    "system",
-			Content: g.SystemPrompt,
+			Content: c.SystemPrompt,
 		})
 	}
 
 	// 1. Process conversation history
 	for _, histMsg := range conversationHistory {
-		msg, err := g.convertHistoryMessage(histMsg)
+		msg, err := c.convertHistoryMessage(histMsg)
 		if err != nil {
 			log.Printf("Warning: Failed to convert history message %d: %v", histMsg.ID, err)
 			continue
@@ -428,9 +510,9 @@ func (g *Groq_Model) createGroqRequest(model string, message models.User_Message
 		}
 	} else {
 		// 3. Process current user message only if no tool results
-		userMsg, err := g.convertUserMessage(message)
+		userMsg, err := c.convertUserMessage(message)
 		if err != nil {
-			return GroqRequest{}, fmt.Errorf("failed to convert user message: %w", err)
+			return CerebrasRequest{}, fmt.Errorf("failed to convert user message: %w", err)
 		}
 		if userMsg != nil {
 			messages = append(messages, *userMsg)
@@ -438,11 +520,11 @@ func (g *Groq_Model) createGroqRequest(model string, message models.User_Message
 	}
 
 	if len(messages) == 0 {
-		return GroqRequest{}, fmt.Errorf("cannot create Groq request with no messages")
+		return CerebrasRequest{}, fmt.Errorf("cannot create Cerebras request with no messages")
 	}
 
 	// Build request
-	request := GroqRequest{
+	request := CerebrasRequest{
 		Model:    model,
 		Messages: messages,
 		Stream:   stream,
@@ -450,23 +532,29 @@ func (g *Groq_Model) createGroqRequest(model string, message models.User_Message
 
 	// Add tools if provided
 	if len(tools) > 0 {
-		request.Tools = ConvertToGroqTools(tools)
+		request.Tools = ConvertToCerebrasTools(tools)
 		request.ToolChoice = "auto"
 	}
 
 	// Add optional parameters
-	if g.Temperature != nil {
-		request.Temperature = g.Temperature
+	if c.Temperature != nil {
+		request.Temperature = c.Temperature
 	}
-	if g.MaxTokens != nil {
-		request.MaxTokens = g.MaxTokens
+	if c.MaxTokens != nil {
+		request.MaxTokens = c.MaxTokens
+	}
+	if c.TopP != nil {
+		request.TopP = c.TopP
+	}
+	if c.Seed != nil {
+		request.Seed = c.Seed
 	}
 
 	return request, nil
 }
 
-// convertHistoryMessage converts a stored message to Groq Message format
-func (g *Groq_Model) convertHistoryMessage(histMsg stores.Message) (*Message, error) {
+// convertHistoryMessage converts a stored message to Cerebras Message format
+func (c *Cerebras_Model) convertHistoryMessage(histMsg stores.Message) (*Message, error) {
 	if histMsg.PartsJSON == "" || histMsg.PartsJSON == "{}" || histMsg.PartsJSON == "null" {
 		return nil, nil
 	}
@@ -493,7 +581,7 @@ func (g *Groq_Model) convertHistoryMessage(histMsg stores.Message) (*Message, er
 		}
 
 		// Regular user message
-		content := g.buildContentFromUserParts(userParts)
+		content := c.buildContentFromUserParts(userParts)
 		if content == nil {
 			return nil, nil
 		}
@@ -549,13 +637,13 @@ func (g *Groq_Model) convertHistoryMessage(histMsg stores.Message) (*Message, er
 	return nil, fmt.Errorf("unknown role: %s", role)
 }
 
-// convertUserMessage converts a User_Message to Groq Message format
-func (g *Groq_Model) convertUserMessage(message models.User_Message) (*Message, error) {
+// convertUserMessage converts a User_Message to Cerebras Message format
+func (c *Cerebras_Model) convertUserMessage(message models.User_Message) (*Message, error) {
 	if len(message.Content.Parts) == 0 {
 		return nil, nil
 	}
 
-	content := g.buildContentFromUserParts(message.Content.Parts)
+	content := c.buildContentFromUserParts(message.Content.Parts)
 	if content == nil {
 		return nil, nil
 	}
@@ -568,7 +656,7 @@ func (g *Groq_Model) convertUserMessage(message models.User_Message) (*Message, 
 
 // buildContentFromUserParts builds message content from user parts
 // Returns string for text-only, []ContentPart for multimodal
-func (g *Groq_Model) buildContentFromUserParts(parts []models.User_Part) interface{} {
+func (c *Cerebras_Model) buildContentFromUserParts(parts []models.User_Part) interface{} {
 	var textParts []string
 	var contentParts []ContentPart
 	hasMultimodal := false

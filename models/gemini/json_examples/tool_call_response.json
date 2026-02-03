@@ -5,9 +5,9 @@
           "parts": [
             {
               "functionCall": {
-                "name": "GetWeather",
+                "name": "Search",
                 "args": {
-                  "location": "London"
+                  "query": "latest London weather"
                 }
               }
             }

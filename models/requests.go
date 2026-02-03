@@ -8,6 +8,8 @@ type Chat_Request struct {
 type Model_Request struct {
 	User_Message *User_Message  `json:"message,omitempty"`
 	Tool_Results *[]Tool_Result `json:"tool_results,omitempty"`
+	// Client_ID optionally identifies the calling client for prompt selection.
+	Client_ID string `json:"client_id,omitempty"`
 	// Input_Mode optionally indicates how the user provided the message.
 	// Supported values: "text" (default), "voice".
 	Input_Mode string `json:"input_mode,omitempty"`

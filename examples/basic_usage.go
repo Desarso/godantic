@@ -44,7 +44,6 @@ func basicHTTPChatExample() {
 
 	// Create agent
 	tools, err := godantic.Create_Tools([]interface{}{
-		common_tools.GetWeather,
 		common_tools.Search,
 	})
 	if err != nil {
@@ -53,7 +52,7 @@ func basicHTTPChatExample() {
 
 	agent := godantic.Create_Agent(&gemini.Gemini_Model{
 		Model: "gemini-2.0-flash",
-	}, tools)
+	}, tools, nil)
 
 	// Create store
 	store, err := stores.NewSQLiteStoreSimple("example_chat.sqlite")
@@ -83,7 +82,6 @@ func basicHTTPChatExample() {
 
 		// Create tools and agent from configuration (like WebSocket controllers)
 		tools, err := godantic.Create_Tools([]interface{}{
-			common_tools.GetWeather,
 			common_tools.Search,
 		})
 		if err != nil {
@@ -93,7 +91,7 @@ func basicHTTPChatExample() {
 
 		agent := godantic.Create_Agent(&gemini.Gemini_Model{
 			Model: "gemini-2.0-flash",
-		}, tools)
+		}, tools, nil)
 
 		// Create agent session like WebSocket (but without WebSocket connection)
 		session := godantic.NewHTTPSession(conversationID, &agent, store)
@@ -217,7 +215,6 @@ func directSessionExample() {
 
 	// Create agent
 	tools, err := godantic.Create_Tools([]interface{}{
-		common_tools.GetWeather,
 		common_tools.Search,
 	})
 	if err != nil {
@@ -226,7 +223,7 @@ func directSessionExample() {
 
 	agent := godantic.Create_Agent(&gemini.Gemini_Model{
 		Model: "gemini-2.0-flash",
-	}, tools)
+	}, tools, nil)
 
 	// Create store
 	store, err := stores.NewSQLiteStoreSimple("direct_session.sqlite")
@@ -241,7 +238,7 @@ func directSessionExample() {
 	userMsg := models.User_Message{
 		Content: models.Content{
 			Parts: []models.User_Part{
-				{Text: "What's the weather like in New York?"},
+				{Text: "Search for the latest news about electric vehicles."},
 			},
 		},
 	}
@@ -270,7 +267,7 @@ func streamingChatExample() {
 
 	// Create session
 	tools, _ := godantic.Create_Tools([]interface{}{common_tools.Search})
-	agent := godantic.Create_Agent(&gemini.Gemini_Model{Model: "gemini-2.0-flash"}, tools)
+	agent := godantic.Create_Agent(&gemini.Gemini_Model{Model: "gemini-2.0-flash"}, tools, nil)
 	store, _ := stores.NewSQLiteStoreSimple("streaming_example.sqlite")
 	session := godantic.NewHTTPSession("streaming_conv", &agent, store)
 
@@ -305,15 +302,15 @@ func websocketSessionExample() {
 
 		// Create agent and store
 		tools, _ := godantic.Create_Tools([]interface{}{
-			common_tools.GetWeather,
+			common_tools.Search,
 		})
 		agent := godantic.Create_Agent(&gemini.Gemini_Model{
 			Model: "gemini-2.0-flash",
-		}, tools)
+		}, tools, nil)
 		store, _ := stores.NewSQLiteStoreSimple("websocket_example.sqlite")
 
 		// Create agent session
-		session := godantic.NewAgentSession(sessionID, conn, &agent, store)
+		session := godantic.NewAgentSession(sessionID, conn, &agent, store, nil)
 
 		// Message loop
 		for {
@@ -475,7 +472,6 @@ func customToolExample() {
 	// Create tools including custom one
 	tools, err := godantic.Create_Tools([]interface{}{
 		GetCurrentTime,
-		common_tools.GetWeather,
 	})
 	if err != nil {
 		log.Printf("Error creating tools: %v", err)
@@ -489,7 +485,6 @@ func customToolExample() {
 		WithModelName("gemini-2.0-flash").
 		WithTools([]interface{}{
 			GetCurrentTime,
-			common_tools.GetWeather,
 			common_tools.Search,
 		})
 
@@ -504,7 +499,7 @@ func errorHandlingExample() {
 	tools, _ := godantic.Create_Tools([]interface{}{})
 	agent := godantic.Create_Agent(&gemini.Gemini_Model{
 		Model: "invalid-model", // This might cause issues
-	}, tools)
+	}, tools, nil)
 
 	// Try to create store with invalid path
 	store, err := stores.NewSQLiteStoreSimple("/invalid/path/database.sqlite")

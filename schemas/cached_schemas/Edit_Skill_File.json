@@ -1,0 +1,16 @@
+{
+  "name": "Edit_Skill_File",
+  "description": "Edit_Skill_File performs a find-and-replace on a skill file. The request argument must be JSON: {\"file\":\"name.md\",\"find\":\"...\",\"replace\":\"...\"}.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "request": {
+        "type": "string",
+        "description": "JSON string with file and content fields."
+      }
+    },
+    "required": [
+      "request"
+    ]
+  }
+}

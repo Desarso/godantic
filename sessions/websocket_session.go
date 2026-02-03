@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/Desarso/godantic/models"
+	"github.com/Desarso/godantic/stores"
 	"github.com/google/uuid"
 
 	eleven_tts "github.com/Desarso/godantic/elevenlabs/tts/multi"
@@ -79,12 +81,14 @@ func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req model
 				// IMPORTANT: ElevenLabs enforces a max number of contexts per websocket connection.
 				// Keep ONE context per session and reuse it across turns; just reset our local buffer and
 				// let flush at end-of-turn trigger audio for that turn.
-				as.ttsPending.Reset()
 				_ = as.Writer.WriteResponse(map[string]any{
 					"type":       "tts_context_started",
 					"context_id": as.ttsContextID,
 					"format":     as.ttsFormat,
 				})
+			} else {
+				// Voice mode requested, but TTS isn't configured (e.g., missing ELEVENLABS_API_KEY).
+				_ = as.Writer.WriteResponse(map[string]any{"type": "tts_unconfigured"})
 			}
 		}
 
@@ -137,9 +141,9 @@ func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req model
 	return nil
 }
 
-// fetchHistory retrieves the latest conversation history
+// fetchHistory retrieves the latest conversation history (limited to last 15 messages)
 func (as *AgentSession) fetchHistory() error {
-	history, err := as.Store.FetchHistory(as.SessionID)
+	history, err := as.Store.FetchHistory(as.SessionID, 15)
 	if err != nil {
 		as.Logger.Printf("Error fetching history: %v", err)
 		return &AgentError{Message: "Failed to fetch history", Fatal: false}
@@ -148,12 +152,17 @@ func (as *AgentSession) fetchHistory() error {
 	return nil
 }
 
-// saveIncomingMessage saves user messages or tool results to the database
+// saveIncomingMessage saves user messages or tool results to the database and memory
 func (as *AgentSession) saveIncomingMessage(req models.Model_Request) error {
 	if req.User_Message != nil {
-		return as.saveUserMessage(req.User_Message)
+		if err := as.saveUserMessage(req.User_Message); err != nil {
+			return err
+		}
+		as.saveToMemoryAsync(as.extractTextFromMessage(req.User_Message), "user")
 	} else if req.Tool_Results != nil {
-		return as.saveToolResults(*req.Tool_Results)
+		if err := as.saveToolResults(*req.Tool_Results); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -310,7 +319,7 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 		apiKey = os.Getenv("ELEVENLABS_API_KEY")
 	}
 	if apiKey == "" {
-		return nil // not configured; silently skip
+		return nil // not configured; caller will notify client in voice mode
 	}
 
 	// If TTS is already initialized with a different voice, restart it so we can switch languages mid-session.
@@ -365,7 +374,9 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 	}
 	as.ttsClient = c
 	as.ttsContextID = uuid.NewString()
+	as.ttsMu.Lock()
 	as.ttsPending.Reset()
+	as.ttsMu.Unlock()
 	as.ttsVoiceID = voiceID
 	as.ensureTTSForwarder()
 
@@ -375,7 +386,11 @@ func (as *AgentSession) ensureTTS(ctx context.Context, languageCode string) erro
 		"context_id": as.ttsContextID,
 		"format":     as.ttsFormat,
 	})
-	return as.ttsClient.InitializeContext(ctx, as.ttsContextID)
+	// Initialize context using a short-lived independent context so barge-in cancellation
+	// doesn't prevent TTS from ever starting.
+	initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return as.ttsClient.InitializeContext(initCtx, as.ttsContextID)
 }
 
 func (as *AgentSession) shutdownTTS(ctx context.Context) {
@@ -396,7 +411,9 @@ func (as *AgentSession) shutdownTTS(ctx context.Context) {
 	_ = as.ttsClient.Close()
 	as.ttsClient = nil
 	as.ttsContextID = ""
+	as.ttsMu.Lock()
 	as.ttsPending.Reset()
+	as.ttsMu.Unlock()
 	as.ttsFormat = ""
 	as.ttsVoiceID = ""
 }
@@ -418,16 +435,19 @@ func (as *AgentSession) ttsHandleDelta(ctx context.Context, delta string) {
 	if as.ttsClient == nil || as.ttsContextID == "" {
 		return
 	}
+	// Build a segment under lock, but do the network call outside the lock.
+	var seg string
+	as.ttsMu.Lock()
 	as.ttsPending.WriteString(delta)
 
 	s := as.ttsPending.String()
 	cut := lastBoundaryIndex(s)
 	// If no good boundary yet, wait for more (but prevent unbounded buffering).
 	if cut < 0 && len(s) < 140 {
+		as.ttsMu.Unlock()
 		return
 	}
 
-	var seg string
 	var rest string
 	if cut >= 0 {
 		seg = s[:cut+1]
@@ -439,6 +459,7 @@ func (as *AgentSession) ttsHandleDelta(ctx context.Context, delta string) {
 
 	as.ttsPending.Reset()
 	as.ttsPending.WriteString(rest)
+	as.ttsMu.Unlock()
 
 	seg = strings.TrimSpace(seg)
 	if seg == "" {
@@ -455,8 +476,10 @@ func (as *AgentSession) ttsFlushPending(ctx context.Context) {
 	if as.ttsClient == nil || as.ttsContextID == "" {
 		return
 	}
+	as.ttsMu.Lock()
 	rest := strings.TrimSpace(as.ttsPending.String())
 	as.ttsPending.Reset()
+	as.ttsMu.Unlock()
 	if rest != "" {
 		if !strings.HasSuffix(rest, " ") {
 			rest += " "
@@ -613,6 +636,7 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 		if err := as.Store.SaveMessage(as.SessionID, "model", "model_message", []models.Model_Part{textPart}, ""); err != nil {
 			as.Logger.Printf("Error saving text message: %v", err)
 		}
+		as.saveToMemoryAsync(finalText, "model")
 	}
 
 	return toolResults, executedAny, nil
@@ -709,4 +733,153 @@ func (as *AgentSession) sendError(message string, fatal bool) error {
 	as.Logger.Printf("Error: %s (fatal: %v)", message, fatal)
 	as.Writer.WriteError(message)
 	return &AgentError{Message: message, Fatal: fatal}
+}
+
+// saveToMemoryAsync saves content to memory asynchronously (fire-and-forget)
+func (as *AgentSession) saveToMemoryAsync(content string, role string) {
+	if as.Memory == nil {
+		return
+	}
+
+	go func() {
+		contextText := as.buildMemoryContext()
+		if contextText != "" {
+			content = contextText
+		}
+		if content == "" {
+			return
+		}
+
+		metadata := map[string]interface{}{
+			"session_id": as.SessionID,
+			"role":       role,
+			"timestamp":  time.Now().Format(time.RFC3339),
+		}
+		if err := as.Memory.AddMemory(content, metadata); err != nil {
+			as.Logger.Printf("Memory save error: %v", err)
+		}
+	}()
+}
+
+func (as *AgentSession) buildMemoryContext() string {
+	if as.Store == nil {
+		return ""
+	}
+
+	limit := getMemoryContextLimit()
+	if limit <= 0 {
+		return ""
+	}
+
+	history, err := as.Store.FetchHistory(as.SessionID, limit)
+	if err != nil || len(history) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	for _, msg := range history {
+		text := extractTextFromStoredMessage(msg)
+		if text == "" {
+			continue
+		}
+
+		roleLabel := "User"
+		if msg.Role == "model" {
+			roleLabel = "Assistant"
+		}
+		b.WriteString(roleLabel)
+		b.WriteString(": ")
+		b.WriteString(text)
+		b.WriteString("\n")
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
+func extractTextFromStoredMessage(msg stores.Message) string {
+	if msg.PartsJSON == "" || msg.PartsJSON == "{}" || msg.PartsJSON == "null" {
+		return ""
+	}
+
+	var text strings.Builder
+	switch msg.Type {
+	case "user_message":
+		var userParts []models.User_Part
+		if err := json.Unmarshal([]byte(msg.PartsJSON), &userParts); err != nil {
+			return ""
+		}
+		for _, part := range userParts {
+			if part.Text != "" {
+				text.WriteString(part.Text)
+			}
+		}
+	case "model_message":
+		var modelParts []models.Model_Part
+		if err := json.Unmarshal([]byte(msg.PartsJSON), &modelParts); err != nil {
+			return ""
+		}
+		for _, part := range modelParts {
+			if part.Text != nil && *part.Text != "" {
+				text.WriteString(*part.Text)
+			}
+		}
+	default:
+		return ""
+	}
+
+	return strings.TrimSpace(text.String())
+}
+
+func getMemoryContextLimit() int {
+	const defaultLimit = 3
+	if value := os.Getenv("MEMORY_CONTEXT_MESSAGES"); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil {
+			return parsed
+		}
+	}
+	return defaultLimit
+}
+
+// retrieveMemories retrieves relevant memories based on the query
+func (as *AgentSession) retrieveMemories(queryText string, mode string) ([]string, error) {
+	if as.Memory == nil || queryText == "" {
+		return nil, nil
+	}
+
+	limit := 10
+	if strings.EqualFold(mode, "voice") {
+		limit = 5
+	}
+
+	return as.Memory.RetrieveMemories(queryText, limit)
+}
+
+// extractTextFromMessage extracts text content from a user message
+func (as *AgentSession) extractTextFromMessage(userMsg *models.User_Message) string {
+	if userMsg == nil || userMsg.Content.Parts == nil {
+		return ""
+	}
+
+	var text strings.Builder
+	for _, part := range userMsg.Content.Parts {
+		if part.Text != "" {
+			text.WriteString(part.Text)
+		}
+	}
+	return strings.TrimSpace(text.String())
+}
+
+// extractTextFromResponse extracts text content from a model response
+func (as *AgentSession) extractTextFromResponse(response *models.Model_Response) string {
+	if response == nil || response.Parts == nil {
+		return ""
+	}
+
+	var text strings.Builder
+	for _, part := range response.Parts {
+		if part.Text != nil && *part.Text != "" {
+			text.WriteString(*part.Text)
+		}
+	}
+	return strings.TrimSpace(text.String())
 }

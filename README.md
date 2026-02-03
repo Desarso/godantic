@@ -57,7 +57,6 @@ err := session.RunInteraction(request)
 ```go
 // Create tools from function interfaces
 tools, err := godantic.Create_Tools([]interface{}{
-    common_tools.GetWeather,
     common_tools.Search,
     MyCustomTool,
 })
@@ -76,7 +75,6 @@ config := godantic.NewWSConfig().
     WithModelName("gemini-2.0-flash").
     WithSQLiteStore("chat.sqlite").
     WithTools([]interface{}{
-        common_tools.GetWeather,
         common_tools.Search,
     })
 ```
@@ -110,7 +108,7 @@ import (
 func main() {
     // 1. Create tools
     tools, _ := godantic.Create_Tools([]interface{}{
-        common_tools.GetWeather,
+        common_tools.Search,
     })
     
     // 2. Create agent
@@ -147,7 +145,6 @@ config := godantic.NewWSConfig().
     WithModelName("gemini-2.0-flash").
     WithSQLiteStore("my_chat.sqlite").
     WithTools([]interface{}{
-        common_tools.GetWeather,
         common_tools.Search,
         common_tools.Brave_Search,
     })
@@ -187,7 +184,6 @@ config.WithModelName("claude-3")
 ```go
 // Add tools
 config.WithTools([]interface{}{
-    common_tools.GetWeather,
     common_tools.Search,
     MyCustomTool,
 })
@@ -200,7 +196,6 @@ config := godantic.NewWSConfig().
     WithModelName("gemini-2.0-flash").
     WithPostgresStore("localhost", "user", "pass", "chatdb", 5432).
     WithTools([]interface{}{
-        common_tools.GetWeather,
         common_tools.Search,
         common_tools.Brave_Search,
     })
@@ -213,7 +208,6 @@ config := godantic.NewWSConfig().
 import "github.com/desarso/NCA_Assistant/godantic/common_tools"
 
 tools := []interface{}{
-    common_tools.GetWeather,     // Weather information
     common_tools.Search,         // General web search
     common_tools.Brave_Search,   // Brave search engine
 }
@@ -245,7 +239,6 @@ func GetCurrentTime(input string) (string, error) {
 // 3. Use in configuration
 config.WithTools([]interface{}{
     GetCurrentTime,
-    common_tools.GetWeather,
 })
 ```
 
@@ -256,8 +249,6 @@ Configure which tools execute automatically:
 // In godantic/tool_approver.go
 func Tool_Approver(toolName string, args map[string]interface{}) (bool, error) {
     switch toolName {
-    case "GetWeather":
-        return true, nil  // Always auto-approve
     case "Search":
         // Conditional approval
         if query, ok := args["query"].(string); ok {
@@ -455,7 +446,6 @@ func createConfigFromEnv() *godantic.WSConfig {
         WithStore(store).
         WithModelName(modelName).
         WithTools([]interface{}{
-            common_tools.GetWeather,
             common_tools.Search,
         })
 }

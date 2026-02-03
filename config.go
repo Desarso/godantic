@@ -11,6 +11,7 @@ const (
 	ProviderGemini     ModelProvider = "gemini"
 	ProviderOpenRouter ModelProvider = "openrouter"
 	ProviderGroq       ModelProvider = "groq"
+	ProviderCerebras   ModelProvider = "cerebras"
 )
 
 // WSConfig holds configuration for WebSocket controllers
@@ -168,5 +169,34 @@ func (c *WSConfig) WithTemperature(temp float64) *WSConfig {
 // WithMaxTokens sets the max tokens for model generation
 func (c *WSConfig) WithMaxTokens(tokens int) *WSConfig {
 	c.MaxTokens = &tokens
+	return c
+}
+
+// NewCerebrasConfig creates a new configuration with Cerebras as the provider
+func NewCerebrasConfig(model string) *WSConfig {
+	// Create a default SQLite store
+	defaultStore, err := stores.NewSQLiteStoreDefault()
+	if err != nil {
+		panic("Failed to create default SQLite store: " + err.Error())
+	}
+
+	if model == "" {
+		model = "llama-3.3-70b"
+	}
+
+	return &WSConfig{
+		ModelName: model,
+		Tools:     []interface{}{},
+		Store:     defaultStore,
+		Provider:  ProviderCerebras,
+	}
+}
+
+// WithCerebras sets Cerebras as the provider with the specified model
+func (c *WSConfig) WithCerebras(model string) *WSConfig {
+	c.Provider = ProviderCerebras
+	if model != "" {
+		c.ModelName = model
+	}
 	return c
 }

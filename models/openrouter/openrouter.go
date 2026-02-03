@@ -222,7 +222,8 @@ func (o *OpenRouter_Model) makeStreamRequest(model string, message models.User_M
 			return
 		}
 
-		log.Printf("OpenRouter Stream Request Body:\n%s", string(jsonBytes))
+		// Request body logging disabled - enable for debugging if needed
+		// log.Printf("OpenRouter Stream Request Body:\n%s", string(jsonBytes))
 
 		// Use custom base URL if provided, otherwise use OpenRouter
 		baseURL := o.BaseURL

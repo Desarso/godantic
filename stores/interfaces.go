@@ -33,7 +33,7 @@ type Conversation struct {
 type MessageStore interface {
 	// Message operations
 	SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error
-	FetchHistory(sessionID string) ([]Message, error)
+	FetchHistory(sessionID string, limit int) ([]Message, error)
 
 	// Conversation operations
 	CreateConversation(convoID, userID string) error

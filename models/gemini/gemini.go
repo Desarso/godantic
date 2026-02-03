@@ -202,7 +202,8 @@ func (g *Gemini_Model) stream_model_request(model string, message models.User_Me
 	}
 
 	// Log the request body for debugging
-	log.Printf("Gemini Stream Request Body:\n%s", string(jsonBytes))
+	// Request body logging disabled - enable for debugging if needed
+	// log.Printf("Gemini Stream Request Body:\n%s", string(jsonBytes))
 
 	// Optional: Write to file for very detailed debugging
 	// if err := os.WriteFile("stream_request_body.json", jsonBytes, 0644); err != nil {

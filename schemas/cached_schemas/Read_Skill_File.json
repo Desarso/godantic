@@ -1,0 +1,16 @@
+{
+  "name": "Read_Skill_File",
+  "description": "Read_Skill_File reads a single markdown file from prompts/skills by name.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "file": {
+        "type": "string",
+        "description": "Skill file name (with or without .md)."
+      }
+    },
+    "required": [
+      "file"
+    ]
+  }
+}

@@ -88,16 +88,18 @@ func (s *SQLiteStore) SaveMessage(sessionID, role, messageType string, parts int
 	}
 
 	// Ensure conversation record exists (create if first message)
-	var existingConv Conversation
-	result := s.db.Where("conversation_id = ?", sessionID).First(&existingConv)
-	if result.Error != nil {
-		// Conversation doesn't exist, create it
+	// Use Count() to check existence without triggering "record not found" error logs
+	var count int64
+	if err := s.db.Model(&Conversation{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
+		log.Printf("Warning: Error checking for conversation %s: %v", sessionID, err)
+	} else if count == 0 {
+		// Conversation doesn't exist, create it (this is expected for new conversations)
 		if err := s.CreateConversation(sessionID, ""); err != nil {
 			log.Printf("Warning: Failed to create conversation record for %s: %v", sessionID, err)
 		}
 	}
 
-	var count int64
+	// Reuse count variable to get message sequence number
 	if err := s.db.Model(&Message{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to count existing messages: %w", err)
 	}
@@ -142,13 +144,30 @@ func (s *SQLiteStore) SaveMessage(sessionID, role, messageType string, parts int
 }
 
 // FetchHistory retrieves messages for a conversation in sequence order
-func (s *SQLiteStore) FetchHistory(sessionID string) ([]Message, error) {
+// limit: maximum number of messages to retrieve (0 = return all messages)
+func (s *SQLiteStore) FetchHistory(sessionID string, limit int) ([]Message, error) {
 	if s.db == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
 
 	var msgs []Message
-	if err := s.db.Where("conversation_id = ?", sessionID).Order("sequence asc").Find(&msgs).Error; err != nil {
+	query := s.db.Where("conversation_id = ?", sessionID).Order("sequence ASC")
+
+	if limit > 0 {
+		// Get total count first
+		var count int64
+		if err := s.db.Model(&Message{}).Where("conversation_id = ?", sessionID).Count(&count).Error; err != nil {
+			return nil, fmt.Errorf("failed to count messages: %w", err)
+		}
+
+		// If more than limit, offset to get only last N messages
+		if count > int64(limit) {
+			offset := int(count) - limit
+			query = query.Offset(offset)
+		}
+	}
+
+	if err := query.Find(&msgs).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 

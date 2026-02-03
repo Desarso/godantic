@@ -16,7 +16,7 @@ func (s *HTTPSession) RunSingleInteraction(userMessage models.User_Message) (mod
 	}
 
 	// Get history and run agent
-	history, err := s.Store.FetchHistory(s.ConversationID)
+	history, err := s.Store.FetchHistory(s.ConversationID, 15)
 	if err != nil {
 		return models.Model_Response{}, fmt.Errorf("failed to fetch history: %w", err)
 	}
@@ -50,7 +50,7 @@ func (s *HTTPSession) RunStreamInteraction(userMessage models.User_Message) (<-c
 		}
 
 		// Get history and run agent stream
-		history, err := s.Store.FetchHistory(s.ConversationID)
+		history, err := s.Store.FetchHistory(s.ConversationID, 15)
 		if err != nil {
 			errChan <- fmt.Errorf("failed to fetch history: %w", err)
 			return
@@ -140,7 +140,7 @@ func (s *HTTPSession) RunSingleInteractionWithRequest(request models.Model_Reque
 		}
 
 		// Get history and run agent
-		history, err := s.Store.FetchHistory(s.ConversationID)
+		history, err := s.Store.FetchHistory(s.ConversationID, 15)
 		if err != nil {
 			return models.Model_Response{}, fmt.Errorf("failed to fetch history: %w", err)
 		}
@@ -237,7 +237,7 @@ func (s *HTTPSession) RunStreamInteractionWithRequest(request models.Model_Reque
 			}
 
 			// Get history and run agent stream
-			history, err := s.Store.FetchHistory(s.ConversationID)
+			history, err := s.Store.FetchHistory(s.ConversationID, 15)
 			if err != nil {
 				errChan <- fmt.Errorf("failed to fetch history: %w", err)
 				return
@@ -520,7 +520,7 @@ func (s *HTTPSession) processAndSaveResponse(response models.Model_Response) err
 // GetChatHistory retrieves and converts chat history to API response format
 func (s *HTTPSession) GetChatHistory() ([]models.ChatMessageResponse, error) {
 	// Get history from store
-	dbHistory, err := s.Store.FetchHistory(s.ConversationID)
+	dbHistory, err := s.Store.FetchHistory(s.ConversationID, 15)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch history: %w", err)
 	}

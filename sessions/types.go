@@ -14,6 +14,12 @@ import (
 	eleven_tts "github.com/Desarso/godantic/elevenlabs/tts/multi"
 )
 
+// MemoryManager interface for dependency injection - use interface{} to avoid import cycle
+type MemoryManager interface {
+	AddMemory(content string, metadata map[string]interface{}) error
+	RetrieveMemories(queryText string, limit int) ([]string, error)
+}
+
 // AgentError represents errors that can occur during agent operations
 type AgentError struct {
 	Message string
@@ -153,10 +159,12 @@ type AgentSession struct {
 	ResponseWaiter       *ResponseWaiter
 	FrontendToolExecutor FrontendToolExecutor // Optional: for handling frontend tools
 	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
+	Memory               MemoryManager        // Optional: for memory storage and retrieval
 
 	// TTS (optional): when enabled, text deltas are forwarded to ElevenLabs and audio chunks are streamed to the client.
 	ttsClient    *eleven_tts.Client
 	ttsContextID string
+	ttsMu        sync.Mutex
 	ttsPending   strings.Builder
 	ttsFormat    string
 	ttsVoiceID   string

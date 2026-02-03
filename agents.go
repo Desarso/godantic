@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	models "github.com/Desarso/godantic/models"
+	"github.com/Desarso/godantic/models/cerebras"
 	"github.com/Desarso/godantic/models/gemini"
 	"github.com/Desarso/godantic/models/groq"
 	"github.com/Desarso/godantic/models/openrouter"
@@ -26,20 +27,22 @@ type Model interface {
 }
 
 type Agent struct {
-	Model Model
-	Tools []models.FunctionDeclaration
+	Model  Model
+	Tools  []models.FunctionDeclaration
+	Memory MemoryManager
 }
 
 // Create_Agent creates an agent with the given model and tools
-func Create_Agent(model Model, tools []models.FunctionDeclaration) Agent {
+func Create_Agent(model Model, tools []models.FunctionDeclaration, memory MemoryManager) Agent {
 	return Agent{
-		Model: model,
-		Tools: tools,
+		Model:  model,
+		Tools:  tools,
+		Memory: memory,
 	}
 }
 
 // Create_Agent_From_Config creates an agent from a WSConfig
-func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration) Agent {
+func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration, memory MemoryManager) Agent {
 	var model Model
 
 	switch config.Provider {
@@ -53,9 +56,16 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 		}
 	case ProviderGroq:
 		model = &groq.Groq_Model{
-			Model:       config.ModelName,
-			Temperature: config.Temperature,
-			MaxTokens:   config.MaxTokens,
+			Model:        config.ModelName,
+			Temperature:  config.Temperature,
+			MaxTokens:    config.MaxTokens,
+			SystemPrompt: config.SystemPrompt,
+		}
+	case ProviderCerebras:
+		model = &cerebras.Cerebras_Model{
+			Model:        config.ModelName,
+			Temperature:  config.Temperature,
+			MaxTokens:    config.MaxTokens,
 			SystemPrompt: config.SystemPrompt,
 		}
 	case ProviderGemini:
@@ -67,8 +77,9 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 	}
 
 	return Agent{
-		Model: model,
-		Tools: tools,
+		Model:  model,
+		Tools:  tools,
+		Memory: memory,
 	}
 }
 
@@ -140,6 +151,31 @@ func NewGroqModelWithOptions(modelName string, temperature *float64, maxTokens *
 		Temperature:  temperature,
 		MaxTokens:    maxTokens,
 		SystemPrompt: systemPrompt,
+	}
+}
+
+// NewCerebrasModel creates a new Cerebras model instance
+func NewCerebrasModel(modelName string) *cerebras.Cerebras_Model {
+	if modelName == "" {
+		modelName = "llama-3.3-70b"
+	}
+	return &cerebras.Cerebras_Model{
+		Model: modelName,
+	}
+}
+
+// NewCerebrasModelWithOptions creates a new Cerebras model with full configuration
+func NewCerebrasModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string, topP *float64, seed *int) *cerebras.Cerebras_Model {
+	if modelName == "" {
+		modelName = "llama-3.3-70b"
+	}
+	return &cerebras.Cerebras_Model{
+		Model:        modelName,
+		Temperature:  temperature,
+		MaxTokens:    maxTokens,
+		SystemPrompt: systemPrompt,
+		TopP:         topP,
+		Seed:         seed,
 	}
 }
 
