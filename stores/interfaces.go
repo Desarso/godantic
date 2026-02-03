@@ -44,6 +44,7 @@ type ConversationInfo struct {
 type MessageStore interface {
 	// Message operations
 	SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error
+	SaveMessageWithUser(sessionID, userID, role, messageType string, parts interface{}, functionID string) error
 	FetchHistory(sessionID string, limit int) ([]Message, error)
 
 	// Conversation operations

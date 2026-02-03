@@ -12,7 +12,7 @@ import (
 )
 
 // NewAgentSession creates a new WebSocket agent session
-func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterface, store stores.MessageStore, memory MemoryManager) *AgentSession {
+func NewAgentSession(sessionID string, userID string, conn *websocket.Conn, agent AgentInterface, store stores.MessageStore, memory MemoryManager) *AgentSession {
 	logger := log.New(os.Stdout, fmt.Sprintf("[WS %s] ", sessionID), log.LstdFlags)
 	writer := &WebSocketWriter{
 		Conn:      conn,
@@ -24,6 +24,7 @@ func NewAgentSession(sessionID string, conn *websocket.Conn, agent AgentInterfac
 	return &AgentSession{
 		Agent:          agent,
 		SessionID:      sessionID,
+		UserID:         userID,
 		Writer:         writer,
 		Store:          store,
 		Logger:         logger,

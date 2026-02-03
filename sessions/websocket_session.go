@@ -187,7 +187,7 @@ func (as *AgentSession) saveUserMessage(userMsg *models.User_Message) error {
 		userPartsToSave = append(userPartsToSave, models.User_Part{Text: userText})
 	}
 
-	return as.Store.SaveMessage(as.SessionID, "user", "user_message", userPartsToSave, "")
+	return as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "user", "user_message", userPartsToSave, "")
 }
 
 // saveToolResults saves tool results to the database
@@ -212,7 +212,7 @@ func (as *AgentSession) saveToolResults(toolResults []models.Tool_Result) error 
 	}
 
 	if len(toolResponseParts) > 0 {
-		return as.Store.SaveMessage(as.SessionID, "user", "function_response", toolResponseParts, "")
+		return as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "user", "function_response", toolResponseParts, "")
 	}
 	return nil
 }
@@ -625,7 +625,7 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 
 		// Save function calls to database
 		if len(modelPartsToSave) > 0 {
-			if err := as.Store.SaveMessage(as.SessionID, "model", "function_call", modelPartsToSave, ""); err != nil {
+			if err := as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "model", "function_call", modelPartsToSave, ""); err != nil {
 				as.Logger.Printf("Error saving function call message: %v", err)
 			}
 		}
@@ -633,7 +633,7 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 	} else if finalText != "" {
 		// Save text-only response
 		textPart := models.Model_Part{Text: &finalText}
-		if err := as.Store.SaveMessage(as.SessionID, "model", "model_message", []models.Model_Part{textPart}, ""); err != nil {
+		if err := as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "model", "model_message", []models.Model_Part{textPart}, ""); err != nil {
 			as.Logger.Printf("Error saving text message: %v", err)
 		}
 		as.saveToMemoryAsync(finalText, "model")

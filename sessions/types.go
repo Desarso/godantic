@@ -152,6 +152,7 @@ type ToolExecutorFunc func(
 type AgentSession struct {
 	Agent                AgentInterface
 	SessionID            string
+	UserID               string // User ID for associating conversations with users
 	Writer               *WebSocketWriter
 	Store                stores.MessageStore
 	Logger               *log.Logger

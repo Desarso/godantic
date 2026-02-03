@@ -81,8 +81,13 @@ func (s *PostgresStore) Ping() error {
 	return sqlDB.Ping()
 }
 
-// SaveMessage saves a message to the database
+// SaveMessage saves a message to the database (without user association - for backward compatibility)
 func (s *PostgresStore) SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error {
+	return s.SaveMessageWithUser(sessionID, "", role, messageType, parts, functionID)
+}
+
+// SaveMessageWithUser saves a message to the database with user association
+func (s *PostgresStore) SaveMessageWithUser(sessionID, userID, role, messageType string, parts interface{}, functionID string) error {
 	if s.db == nil {
 		return fmt.Errorf("database connection is nil")
 	}
@@ -92,8 +97,8 @@ func (s *PostgresStore) SaveMessage(sessionID, role, messageType string, parts i
 	if err := s.db.Model(&Conversation{}).Where("conversation_id = ?", sessionID).Count(&convCount).Error; err != nil {
 		log.Printf("Warning: Error checking for conversation %s: %v", sessionID, err)
 	} else if convCount == 0 {
-		// Conversation doesn't exist, create it (this is expected for new conversations)
-		if err := s.CreateConversation(sessionID, ""); err != nil {
+		// Conversation doesn't exist, create it with user ID
+		if err := s.CreateConversation(sessionID, userID); err != nil {
 			log.Printf("Warning: Failed to create conversation record for %s: %v", sessionID, err)
 		}
 	}
