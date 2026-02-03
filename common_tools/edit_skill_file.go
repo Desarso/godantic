@@ -9,8 +9,11 @@ import (
 
 //go:generate ../../gen_schema -func=Edit_Skill_File -file=edit_skill_file.go -out=../schemas/cached_schemas
 
-// Custom skills directory (persisted in volume)
-const customSkillsDir = "data/custom_skills"
+// CustomSkillsDir is the directory for agent-created skills (persisted in volume)
+const CustomSkillsDir = "data/custom_skills"
+
+// For internal use
+const customSkillsDir = CustomSkillsDir
 
 // Edit_Skill_File performs a find-and-replace in a skill markdown file.
 // Replaces the first occurrence of old_text with new_text in the specified file.
