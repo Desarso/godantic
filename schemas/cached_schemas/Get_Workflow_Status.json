@@ -1,0 +1,15 @@
+{
+  "name": "Get_Workflow_Status",
+  "description": "Get_Workflow_Status returns the current status of a workflow\nStatus can be: \"pending\", \"running\", \"completed\", or \"failed\"",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

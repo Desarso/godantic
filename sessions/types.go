@@ -88,6 +88,59 @@ type WebSocketToolResultMessage struct {
 	ResultJSON   string                 `json:"result_json"` // Raw JSON string of result
 }
 
+// WebSocketTraceMessage represents a trace event sent over WebSocket
+// These are for UI visualization only and are NOT stored in chat history
+type WebSocketTraceMessage struct {
+	Type       string                 `json:"type"` // "execution_trace"
+	TraceID    string                 `json:"trace_id"`
+	ParentID   string                 `json:"parent_id,omitempty"`
+	ToolCallID string                 `json:"tool_call_id"`      // Links trace to the tool call
+	Tool       string                 `json:"tool"`              // e.g., 'web', 'tavily', 'math', 'graph', 'skills'
+	Operation  string                 `json:"operation"`         // e.g., 'get', 'search', 'calculate'
+	Status     string                 `json:"status"`            // start, progress, end, error
+	Label      string                 `json:"label"`             // Human-readable description
+	Details    map[string]interface{} `json:"details,omitempty"` // Optional metadata
+	Timestamp  int64                  `json:"timestamp"`
+	DurationMS int64                  `json:"duration_ms,omitempty"` // Set on 'end' status
+}
+
+// WebSocketTraceEmitter implements TraceEmitter by sending traces over WebSocket
+type WebSocketTraceEmitter struct {
+	Writer     *WebSocketWriter
+	ToolCallID string // The tool_call_id this trace belongs to
+}
+
+// TraceEvent matches the structure from common_tools
+type TraceEvent struct {
+	TraceID    string                 `json:"trace_id"`
+	ParentID   string                 `json:"parent_id,omitempty"`
+	Tool       string                 `json:"tool"`
+	Operation  string                 `json:"operation"`
+	Status     string                 `json:"status"`
+	Label      string                 `json:"label"`
+	Details    map[string]interface{} `json:"details,omitempty"`
+	Timestamp  int64                  `json:"timestamp"`
+	DurationMS int64                  `json:"duration_ms,omitempty"`
+}
+
+// EmitTrace sends a trace event over WebSocket
+func (e *WebSocketTraceEmitter) EmitTrace(trace TraceEvent) error {
+	msg := WebSocketTraceMessage{
+		Type:       "execution_trace",
+		TraceID:    trace.TraceID,
+		ParentID:   trace.ParentID,
+		ToolCallID: e.ToolCallID,
+		Tool:       trace.Tool,
+		Operation:  trace.Operation,
+		Status:     trace.Status,
+		Label:      trace.Label,
+		Details:    trace.Details,
+		Timestamp:  trace.Timestamp,
+		DurationMS: trace.DurationMS,
+	}
+	return e.Writer.WriteResponse(msg)
+}
+
 // ResponseWaiter allows tools to wait for user input from the frontend
 type ResponseWaiter struct {
 	responseChan chan string
@@ -168,6 +221,7 @@ type AgentSession struct {
 	UserID               string // User ID for associating conversations with users
 	Writer               *WebSocketWriter
 	Store                stores.MessageStore
+	TraceStore           stores.TraceStore // Optional: for persisting execution traces
 	Logger               *log.Logger
 	History              []stores.Message
 	ResponseWaiter       *ResponseWaiter

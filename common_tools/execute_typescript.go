@@ -1,10 +1,12 @@
 package common_tools
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -18,6 +20,24 @@ type TypeScriptExecutionResult struct {
 	Success bool   `json:"success"`
 	Output  string `json:"output"`
 	Error   string `json:"error"`
+}
+
+// TraceEvent represents an execution trace from the TypeScript runtime
+type TraceEvent struct {
+	TraceID    string                 `json:"trace_id"`
+	ParentID   string                 `json:"parent_id,omitempty"`
+	Tool       string                 `json:"tool"`
+	Operation  string                 `json:"operation"`
+	Status     string                 `json:"status"` // start, progress, end, error
+	Label      string                 `json:"label"`
+	Details    map[string]interface{} `json:"details,omitempty"`
+	Timestamp  int64                  `json:"timestamp"`
+	DurationMS int64                  `json:"duration_ms,omitempty"`
+}
+
+// TraceEmitter is an interface for emitting trace events
+type TraceEmitter interface {
+	EmitTrace(trace TraceEvent) error
 }
 
 // findBun attempts to locate the Bun executable
@@ -56,6 +76,12 @@ func findBun() (string, error) {
 // - No process manipulation
 // - Input validation in TypeScript executor
 func Execute_TypeScript(code string) (string, error) {
+	return Execute_TypeScriptWithTracing(code, nil)
+}
+
+// Execute_TypeScriptWithTracing executes TypeScript code and streams trace events
+// If traceEmitter is nil, traces are silently discarded (backward compatible)
+func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (string, error) {
 	// Basic validation
 	if code == "" {
 		return "", fmt.Errorf("TypeScript code cannot be empty")
@@ -80,13 +106,35 @@ func Execute_TypeScript(code string) (string, error) {
 	// Set up environment variables
 	cmd.Env = os.Environ()
 
-	// Capture output
-	var stdout, stderr bytes.Buffer
+	// Capture stdout
+	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
 
-	// Run the command
-	err = cmd.Run()
+	// For stderr, we need to parse trace events in real-time if we have a trace emitter
+	var stderr bytes.Buffer
+	var stderrPipe io.ReadCloser
+
+	if traceEmitter != nil {
+		stderrPipe, err = cmd.StderrPipe()
+		if err != nil {
+			return "", fmt.Errorf("failed to create stderr pipe: %v", err)
+		}
+	} else {
+		cmd.Stderr = &stderr
+	}
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start TypeScript executor: %v", err)
+	}
+
+	// If we have a trace emitter, parse stderr for trace events
+	if traceEmitter != nil {
+		go processStderrForTraces(stderrPipe, traceEmitter, &stderr)
+	}
+
+	// Wait for command to finish
+	err = cmd.Wait()
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
@@ -139,4 +187,32 @@ func Execute_TypeScript(code string) (string, error) {
 	}
 
 	return "", fmt.Errorf("execution failed: no output received")
+}
+
+// processStderrForTraces reads stderr line by line, extracts trace events,
+// and collects non-trace output into the stderr buffer
+func processStderrForTraces(pipe io.ReadCloser, emitter TraceEmitter, nonTraceOutput *bytes.Buffer) {
+	defer pipe.Close()
+
+	scanner := bufio.NewScanner(pipe)
+	const tracePrefix = "__TRACE__"
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check if this is a trace event
+		if strings.HasPrefix(line, tracePrefix) {
+			// Parse and emit the trace
+			jsonStr := strings.TrimPrefix(line, tracePrefix)
+			var trace TraceEvent
+			if err := json.Unmarshal([]byte(jsonStr), &trace); err == nil {
+				// Emit trace event (errors are silently ignored - non-critical)
+				_ = emitter.EmitTrace(trace)
+			}
+		} else {
+			// Not a trace, collect as regular stderr output
+			nonTraceOutput.WriteString(line)
+			nonTraceOutput.WriteString("\n")
+		}
+	}
 }

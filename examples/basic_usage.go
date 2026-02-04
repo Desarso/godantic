@@ -309,8 +309,8 @@ func websocketSessionExample() {
 		}, tools, nil)
 		store, _ := stores.NewSQLiteStoreSimple("websocket_example.sqlite")
 
-		// Create agent session
-		session := godantic.NewAgentSession(sessionID, conn, &agent, store, nil)
+		// Create agent session (sessionID, userID, conn, agent, store, memory)
+		session := godantic.NewAgentSession(sessionID, "", conn, &agent, store, nil)
 
 		// Message loop
 		for {

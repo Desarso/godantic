@@ -1,0 +1,23 @@
+{
+  "name": "Schedule_Workflow",
+  "description": "Schedule_Workflow schedules a workflow to run automatically\nschedule_type can be: \"cron\", \"once\", or \"interval\"\n- For \"cron\": provide a cron expression in schedule_value (e.g., \"0 0 9 * * *\" for 9am daily, \"0 */30 * * * *\" for every 30 minutes)\n- For \"once\": provide an ISO timestamp in schedule_value (e.g., \"2024-12-25T09:00:00Z\")\n- For \"interval\": provide seconds as schedule_value (e.g., \"3600\" for every hour)\nNote: Cron expressions use 6 fields (seconds minutes hours day month weekday)",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      },
+      "schedule_type": {
+        "type": "string"
+      },
+      "schedule_value": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id",
+      "schedule_type",
+      "schedule_value"
+    ]
+  }
+}

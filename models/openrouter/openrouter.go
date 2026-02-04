@@ -338,6 +338,20 @@ func (o *OpenRouter_Model) makeStreamRequest(model string, message models.User_M
 
 				modelResp := models.Model_Response{}
 
+				// Handle reasoning delta (chain-of-thought from models like Kimi K2.5, DeepSeek-R1)
+				// Check both field names as different models use different conventions
+				var reasoningContent string
+				if choice.Delta.Reasoning != nil && *choice.Delta.Reasoning != "" {
+					reasoningContent = *choice.Delta.Reasoning
+				} else if choice.Delta.ReasoningContent != nil && *choice.Delta.ReasoningContent != "" {
+					reasoningContent = *choice.Delta.ReasoningContent
+				}
+				if reasoningContent != "" {
+					modelResp.Parts = append(modelResp.Parts, models.Model_Part{
+						Reasoning: &reasoningContent,
+					})
+				}
+
 				// Handle text delta
 				if choice.Delta.Content != nil {
 					switch content := choice.Delta.Content.(type) {
@@ -370,7 +384,7 @@ func (o *OpenRouter_Model) makeStreamRequest(model string, message models.User_M
 					}
 				}
 
-				// Send text parts immediately
+				// Send text/reasoning parts immediately
 				if len(modelResp.Parts) > 0 {
 					respChan <- modelResp
 				}

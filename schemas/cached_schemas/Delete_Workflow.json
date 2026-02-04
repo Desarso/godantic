@@ -1,0 +1,15 @@
+{
+  "name": "Delete_Workflow",
+  "description": "Delete_Workflow deletes a workflow and all its data\nCannot delete a running workflow - stop it first",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

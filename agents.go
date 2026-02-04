@@ -257,6 +257,9 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 	var toolExecErr error
 	toolFound := false
 
+	// Trim whitespace from function name (some models output with leading/trailing spaces)
+	functionName = strings.TrimSpace(functionName)
+
 	for _, tool := range agent.Tools {
 		if tool.Name == functionName {
 			toolFound = true
@@ -279,36 +282,93 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 			var argsToPass []reflect.Value
 
 			// Handle different input signatures
-			if funcType.NumIn() == 0 {
+			numIn := funcType.NumIn()
+			if numIn == 0 {
 				// No parameters: func() (string, error)
 				argsToPass = []reflect.Value{}
-			} else if funcType.NumIn() == 1 && funcType.In(0).Kind() == reflect.String {
-				// Single string parameter: func(string) (string, error)
-				var stringArg string
-				if len(functionCallArgs) == 0 {
-					stringArg = "" // Allow empty args for single-param functions
-				} else if len(functionCallArgs) == 1 {
-					var argName string
-					var argValueInterface interface{}
-					for key, val := range functionCallArgs {
-						argName = key
-						argValueInterface = val
+			} else {
+				// Check if all parameters are strings
+				allStrings := true
+				for i := 0; i < numIn; i++ {
+					if funcType.In(i).Kind() != reflect.String {
+						allStrings = false
 						break
 					}
-					var ok bool
-					stringArg, ok = argValueInterface.(string)
-					if !ok {
-						toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, argName, argValueInterface)
-						break
-					}
-				} else {
-					toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
+				}
+
+				if !allStrings {
+					toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible input signature (all params must be string)", functionName)
 					break
 				}
-				argsToPass = []reflect.Value{reflect.ValueOf(stringArg)}
-			} else {
-				toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible input signature (expected 0 or 1 string param)", functionName)
-				break
+
+				if numIn == 1 {
+					// Single string parameter: func(string) (string, error)
+					var stringArg string
+					if len(functionCallArgs) == 0 {
+						stringArg = "" // Allow empty args for single-param functions
+					} else if len(functionCallArgs) == 1 {
+						var argName string
+						var argValueInterface interface{}
+						for key, val := range functionCallArgs {
+							argName = key
+							argValueInterface = val
+							break
+						}
+						var ok bool
+						stringArg, ok = argValueInterface.(string)
+						if !ok {
+							toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, argName, argValueInterface)
+							break
+						}
+					} else {
+						toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
+						break
+					}
+					argsToPass = []reflect.Value{reflect.ValueOf(stringArg)}
+				} else {
+					// Multiple string parameters: func(s1, s2, ...) (string, error)
+					// We need to get parameter names from the schema to match them correctly
+					argsToPass = make([]reflect.Value, numIn)
+
+					// Get parameter names from schema (tool is in scope from the outer loop)
+					schema := tool
+
+					// Extract parameter order from schema's "required" field (maintains order)
+					paramOrder := schema.Parameters.Required
+					if len(paramOrder) != numIn {
+						// Fallback: try to get from properties keys (though order may not be guaranteed)
+						paramOrder = make([]string, 0, len(schema.Parameters.Properties))
+						for key := range schema.Parameters.Properties {
+							paramOrder = append(paramOrder, key)
+						}
+					}
+
+					if len(paramOrder) != numIn {
+						toolExecErr = fmt.Errorf("internal error: tool '%s' parameter count mismatch (schema: %d, func: %d)", functionName, len(paramOrder), numIn)
+						break
+					}
+
+					// Map args by parameter name in order
+					validArgs := true
+					for i, paramName := range paramOrder {
+						argValue, exists := functionCallArgs[paramName]
+						if !exists {
+							toolExecErr = fmt.Errorf("missing required argument '%s' for tool '%s'", paramName, functionName)
+							validArgs = false
+							break
+						}
+						stringVal, ok := argValue.(string)
+						if !ok {
+							toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, paramName, argValue)
+							validArgs = false
+							break
+						}
+						argsToPass[i] = reflect.ValueOf(stringVal)
+					}
+					if !validArgs {
+						break
+					}
+				}
 			}
 
 			// Call Function

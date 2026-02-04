@@ -23,6 +23,9 @@ type Message struct {
 	Name       *string     `json:"name,omitempty"`
 	ToolCalls  []ToolCall  `json:"tool_calls,omitempty"`   // For assistant messages with tool calls
 	ToolCallID *string     `json:"tool_call_id,omitempty"` // For tool response messages
+	// Reasoning fields for models that support chain-of-thought (e.g., Kimi K2.5, DeepSeek-R1)
+	Reasoning        *string `json:"reasoning,omitempty"`         // Reasoning/thinking content
+	ReasoningContent *string `json:"reasoning_content,omitempty"` // Alternative field name used by some models
 }
 
 type ContentPart struct {

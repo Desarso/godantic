@@ -19,12 +19,13 @@ type WSConfig struct {
 	ModelName    string
 	Tools        []interface{}
 	Store        stores.MessageStore
-	Provider     ModelProvider // AI model provider (gemini, openrouter, groq)
-	SiteURL      string        // Optional: Site URL for OpenRouter rankings
-	SiteName     string        // Optional: Site name for OpenRouter rankings
-	Temperature  *float64      // Optional: Temperature for model generation
-	MaxTokens    *int          // Optional: Max tokens for model generation
-	SystemPrompt string        // Optional: System prompt for the AI
+	TraceStore   stores.TraceStore // Optional: Store for execution traces
+	Provider     ModelProvider     // AI model provider (gemini, openrouter, groq)
+	SiteURL      string            // Optional: Site URL for OpenRouter rankings
+	SiteName     string            // Optional: Site name for OpenRouter rankings
+	Temperature  *float64          // Optional: Temperature for model generation
+	MaxTokens    *int              // Optional: Max tokens for model generation
+	SystemPrompt string            // Optional: System prompt for the AI
 }
 
 // NewWSConfig creates a new WebSocket configuration with default values
@@ -198,5 +199,11 @@ func (c *WSConfig) WithCerebras(model string) *WSConfig {
 	if model != "" {
 		c.ModelName = model
 	}
+	return c
+}
+
+// WithTraceStore sets the trace store for execution trace persistence
+func (c *WSConfig) WithTraceStore(traceStore stores.TraceStore) *WSConfig {
+	c.TraceStore = traceStore
 	return c
 }

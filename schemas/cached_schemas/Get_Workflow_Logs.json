@@ -1,0 +1,19 @@
+{
+  "name": "Get_Workflow_Logs",
+  "description": "Get_Workflow_Logs returns the execution logs of a workflow\nOptionally specify tail_lines to get only the last N lines (0 = all lines)",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "tail_lines": {
+        "type": "integer"
+      },
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "tail_lines",
+      "workflow_id"
+    ]
+  }
+}

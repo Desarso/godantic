@@ -1,0 +1,15 @@
+{
+  "name": "Run_Workflow",
+  "description": "Run_Workflow starts a workflow in the background\nThe workflow runs as a separate process and does not block\nUse Get_Workflow_Status to check if it's still running\nUse Get_Workflow_Logs to view the execution logs",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

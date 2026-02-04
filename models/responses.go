@@ -15,6 +15,7 @@ type FunctionCall struct {
 type Model_Part struct {
 	Text         *string       `json:"text,omitempty"`
 	FunctionCall *FunctionCall `json:"functionCall,omitempty"`
+	Reasoning    *string       `json:"reasoning,omitempty"` // Chain-of-thought reasoning content
 }
 
 type Model_Text_Part struct {

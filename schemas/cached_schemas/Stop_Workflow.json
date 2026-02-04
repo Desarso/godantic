@@ -1,0 +1,15 @@
+{
+  "name": "Stop_Workflow",
+  "description": "Stop_Workflow stops a running workflow by killing its process",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

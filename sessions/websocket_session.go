@@ -3,6 +3,8 @@ package sessions
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -10,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Desarso/godantic/common_tools"
 	"github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/stores"
 	"github.com/google/uuid"
@@ -583,9 +586,10 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 	toolResults := []models.Tool_Result{}
 	executedAny := false
 	finalText := ""
+	finalReasoning := ""
 
-	// Extract function calls and text
-	functionCalls := as.extractFunctionCalls(parts, &finalText)
+	// Extract function calls, text, and reasoning
+	functionCalls := as.extractFunctionCalls(parts, &finalText, &finalReasoning)
 
 	if len(functionCalls) > 0 {
 		// Process function calls
@@ -635,25 +639,33 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 			}
 		}
 
-	} else if finalText != "" {
+	} else if finalText != "" || finalReasoning != "" {
 		// Log agent message flow
 		if as.FlowLogger != nil {
 			as.FlowLogger.LogAgentMessage(as.SessionID, finalText)
 		}
 
-		// Save text-only response
-		textPart := models.Model_Part{Text: &finalText}
-		if err := as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "model", "model_message", []models.Model_Part{textPart}, ""); err != nil {
+		// Save text response with reasoning if present
+		partsToSave := []models.Model_Part{}
+		if finalReasoning != "" {
+			partsToSave = append(partsToSave, models.Model_Part{Reasoning: &finalReasoning})
+		}
+		if finalText != "" {
+			partsToSave = append(partsToSave, models.Model_Part{Text: &finalText})
+		}
+		if err := as.Store.SaveMessageWithUser(as.SessionID, as.UserID, "model", "model_message", partsToSave, ""); err != nil {
 			as.Logger.Printf("Error saving text message: %v", err)
 		}
-		as.saveToMemoryAsync(finalText, "model")
+		if finalText != "" {
+			as.saveToMemoryAsync(finalText, "model")
+		}
 	}
 
 	return toolResults, executedAny, nil
 }
 
-// extractFunctionCalls extracts unique function calls from parts
-func (as *AgentSession) extractFunctionCalls(parts []models.Model_Part, finalText *string) []functionCallInfo {
+// extractFunctionCalls extracts unique function calls from parts, also accumulates text and reasoning
+func (as *AgentSession) extractFunctionCalls(parts []models.Model_Part, finalText *string, finalReasoning *string) []functionCallInfo {
 	seenFC := make(map[string]bool)
 	functionCalls := []functionCallInfo{}
 
@@ -663,11 +675,18 @@ func (as *AgentSession) extractFunctionCalls(parts []models.Model_Part, finalTex
 			*finalText += *part.Text
 		}
 
+		// Accumulate reasoning (chain-of-thought from models like Kimi K2.5, DeepSeek-R1)
+		if part.Reasoning != nil {
+			*finalReasoning += *part.Reasoning
+		}
+
 		// Process function calls
 		if part.FunctionCall != nil {
+			// Trim whitespace from function name (some models output with leading/trailing spaces)
+			funcName := strings.TrimSpace(part.FunctionCall.Name)
 			argsBytes, _ := json.Marshal(part.FunctionCall.Args)
 			argsJSON := string(argsBytes)
-			key := part.FunctionCall.Name + "|" + argsJSON
+			key := funcName + "|" + argsJSON
 
 			if !seenFC[key] {
 				seenFC[key] = true
@@ -677,7 +696,7 @@ func (as *AgentSession) extractFunctionCalls(parts []models.Model_Part, finalTex
 				}
 
 				functionCalls = append(functionCalls, functionCallInfo{
-					Name:       part.FunctionCall.Name,
+					Name:       funcName,
 					Args:       part.FunctionCall.Args,
 					ID:         id,
 					ArgsJSON:   argsJSON,
@@ -702,11 +721,19 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 		as.FlowLogger.LogToolCall(as.SessionID, fc.Name, fc.Args)
 	}
 
+	// Emit start trace for all tools (visible in frontend timeline)
+	startTime := time.Now()
+	traceID := fmt.Sprintf("tool_%s_%d", fc.ID, startTime.UnixMilli())
+	as.emitToolTrace(fc.ID, traceID, fc.Name, "start", getToolStartLabel(fc.Name, fc.Args), nil)
+
 	var result string
 	var err error
 
-	// Check FrontendToolExecutor first if it exists and this is a frontend tool
-	if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
+	// Special handling for Execute_TypeScript to enable detailed internal tracing
+	if fc.Name == "Execute_TypeScript" {
+		result, err = as.executeTypeScriptWithTracing(fc)
+	} else if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
+		// Check FrontendToolExecutor if it exists and this is a frontend tool
 		result, err = as.FrontendToolExecutor.ExecuteFrontendTool(fc.Name, fc.Args)
 	} else if as.ToolExecutor != nil {
 		// If a custom tool executor is set (for frontend tools), use it
@@ -724,6 +751,14 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 		result, err = as.Agent.ExecuteTool(fc.Name, fc.Args, as.SessionID)
 	}
 
+	// Emit end trace
+	durationMs := time.Since(startTime).Milliseconds()
+	if err != nil {
+		as.emitToolTrace(fc.ID, traceID, fc.Name, "error", getToolErrorLabel(fc.Name, err), &durationMs)
+	} else {
+		as.emitToolTrace(fc.ID, traceID, fc.Name, "end", getToolEndLabel(fc.Name, fc.Args), &durationMs)
+	}
+
 	// Log tool result
 	if as.FlowLogger != nil {
 		preview := result
@@ -734,6 +769,245 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 	}
 
 	return result, err
+}
+
+// emitToolTrace sends a trace event over WebSocket for real-time visualization
+// Note: Regular tool traces are NOT persisted to database since they're 1:1 with
+// tool_call/tool_result messages already in chat history. Only TypeScript executor
+// internal traces (from wsTraceEmitterAdapter) are persisted.
+func (as *AgentSession) emitToolTrace(toolCallID, traceID, toolName, status, label string, durationMs *int64) {
+	timestamp := time.Now().UnixMilli()
+	tool := getToolCategory(toolName)
+
+	// Send to WebSocket for real-time visualization
+	msg := WebSocketTraceMessage{
+		Type:       "execution_trace",
+		TraceID:    traceID,
+		ToolCallID: toolCallID,
+		Tool:       tool,
+		Operation:  toolName,
+		Status:     status,
+		Label:      label,
+		Timestamp:  timestamp,
+	}
+	if durationMs != nil {
+		msg.DurationMS = *durationMs
+	}
+	// Ignore errors - traces are non-critical for WebSocket
+	_ = as.Writer.WriteResponse(msg)
+
+	// Note: We intentionally do NOT persist regular tool traces to the database.
+	// Regular tools (Search, Generate_Image, etc.) have their execution recorded
+	// in the chat history as tool_call and tool_result messages. Persisting traces
+	// would be redundant. Only TypeScript executor internal operations (web.get,
+	// tavily.search, etc.) are persisted via wsTraceEmitterAdapter.
+}
+
+// getToolCategory returns the category for a tool (for UI icons)
+func getToolCategory(toolName string) string {
+	switch toolName {
+	case "Search", "Brave_Search":
+		return "search"
+	case "Execute_TypeScript":
+		return "code"
+	case "Generate_Image":
+		return "image"
+	case "List_Skill_Files", "Read_Skill_File", "Edit_Skill_File", "Create_Skill_File", "Delete_Skill_File":
+		return "skills"
+	case "Browser_Alert", "Browser_Prompt", "Browser_Navigate", "Sandbox_Run", "Confirm_With_User":
+		return "browser"
+	default:
+		if strings.Contains(toolName, "Workflow") {
+			return "workflow"
+		}
+		return "tool"
+	}
+}
+
+// getToolStartLabel returns a human-readable start label for a tool
+func getToolStartLabel(toolName string, args map[string]interface{}) string {
+	switch toolName {
+	case "Search", "Brave_Search":
+		if query, ok := args["query"].(string); ok {
+			if len(query) > 50 {
+				query = query[:50] + "..."
+			}
+			return fmt.Sprintf("Searching: \"%s\"", query)
+		}
+		return "Searching the web"
+	case "Execute_TypeScript":
+		return "Executing code"
+	case "Generate_Image":
+		return "Generating image"
+	case "List_Skill_Files":
+		return "Listing skills"
+	case "Read_Skill_File":
+		if name, ok := args["name"].(string); ok {
+			return fmt.Sprintf("Reading skill: %s", name)
+		}
+		return "Reading skill"
+	case "Browser_Navigate":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("Navigating to %s", url)
+		}
+		return "Opening browser"
+	case "Confirm_With_User":
+		return "Waiting for confirmation"
+	default:
+		// Convert tool name to readable format
+		readable := strings.ReplaceAll(toolName, "_", " ")
+		return fmt.Sprintf("Running %s", readable)
+	}
+}
+
+// getToolErrorLabel returns a clean, user-friendly error label for a tool
+func getToolErrorLabel(toolName string, err error) string {
+	errMsg := err.Error()
+
+	// Extract just the key message for common error types
+	switch {
+	case strings.Contains(errMsg, "query cannot be empty"):
+		return "Failed: empty search query"
+	case strings.Contains(errMsg, "API request failed"):
+		// Extract just "API error" without the full JSON response
+		return "Failed: API error"
+	case strings.Contains(errMsg, "timeout"):
+		return "Failed: request timed out"
+	case strings.Contains(errMsg, "connection"):
+		return "Failed: connection error"
+	case strings.Contains(errMsg, "not found"):
+		return "Failed: not found"
+	case strings.Contains(errMsg, "unauthorized") || strings.Contains(errMsg, "401"):
+		return "Failed: unauthorized"
+	case strings.Contains(errMsg, "forbidden") || strings.Contains(errMsg, "403"):
+		return "Failed: access denied"
+	default:
+		// Truncate long error messages
+		if len(errMsg) > 40 {
+			errMsg = errMsg[:40] + "..."
+		}
+		return fmt.Sprintf("Failed: %s", errMsg)
+	}
+}
+
+// getToolEndLabel returns a human-readable end label for a tool (past tense)
+func getToolEndLabel(toolName string, args map[string]interface{}) string {
+	switch toolName {
+	case "Search", "Brave_Search":
+		if query, ok := args["query"].(string); ok {
+			if len(query) > 50 {
+				query = query[:50] + "..."
+			}
+			return fmt.Sprintf("Searched: \"%s\"", query)
+		}
+		return "Searched the web"
+	case "Execute_TypeScript":
+		return "Executed code"
+	case "Generate_Image":
+		return "Generated image"
+	case "List_Skill_Files":
+		return "Listed skills"
+	case "Read_Skill_File":
+		if name, ok := args["name"].(string); ok {
+			return fmt.Sprintf("Read skill: %s", name)
+		}
+		return "Read skill"
+	case "Browser_Navigate":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("Navigated to %s", url)
+		}
+		return "Opened browser"
+	case "Confirm_With_User":
+		return "User responded"
+	default:
+		readable := strings.ReplaceAll(toolName, "_", " ")
+		return fmt.Sprintf("Ran %s", readable)
+	}
+}
+
+// executeTypeScriptWithTracing executes TypeScript code with real-time trace streaming
+func (as *AgentSession) executeTypeScriptWithTracing(fc functionCallInfo) (string, error) {
+	// Extract the code argument
+	code, ok := fc.Args["code"].(string)
+	if !ok {
+		// Try to get from any single argument
+		for _, v := range fc.Args {
+			if s, ok := v.(string); ok {
+				code = s
+				break
+			}
+		}
+	}
+
+	if code == "" {
+		return "", nil
+	}
+
+	// Create a trace emitter that sends traces over WebSocket and saves to DB
+	// The trace emitter is linked to this specific tool call via fc.ID
+	traceEmitter := &wsTraceEmitterAdapter{
+		emitter: &WebSocketTraceEmitter{
+			Writer:     as.Writer,
+			ToolCallID: fc.ID,
+		},
+		traceStore:     as.TraceStore,
+		conversationID: as.SessionID,
+		toolCallID:     fc.ID,
+		logger:         as.Logger,
+	}
+
+	return common_tools.Execute_TypeScriptWithTracing(code, traceEmitter)
+}
+
+// wsTraceEmitterAdapter adapts WebSocketTraceEmitter to common_tools.TraceEmitter
+// Also handles persisting traces to the database
+type wsTraceEmitterAdapter struct {
+	emitter        *WebSocketTraceEmitter
+	traceStore     stores.TraceStore
+	conversationID string
+	toolCallID     string
+	logger         *log.Logger
+}
+
+func (a *wsTraceEmitterAdapter) EmitTrace(trace common_tools.TraceEvent) error {
+	// Convert common_tools.TraceEvent to sessions.TraceEvent and send via WebSocket
+	sessionTrace := TraceEvent{
+		TraceID:    trace.TraceID,
+		ParentID:   trace.ParentID,
+		Tool:       trace.Tool,
+		Operation:  trace.Operation,
+		Status:     trace.Status,
+		Label:      trace.Label,
+		Details:    trace.Details,
+		Timestamp:  trace.Timestamp,
+		DurationMS: trace.DurationMS,
+	}
+	err := a.emitter.EmitTrace(sessionTrace)
+
+	// Also save to database if trace store is configured
+	if a.traceStore != nil {
+		dbTrace := &stores.ExecutionTrace{
+			ConversationID: a.conversationID,
+			ToolCallID:     a.toolCallID,
+			TraceID:        trace.TraceID,
+			ParentID:       trace.ParentID,
+			Tool:           trace.Tool,
+			Operation:      trace.Operation,
+			Status:         trace.Status,
+			Label:          trace.Label,
+			Details:        trace.Details,
+			Timestamp:      trace.Timestamp,
+			DurationMS:     trace.DurationMS,
+		}
+		// Save async to avoid blocking
+		go func() {
+			if saveErr := a.traceStore.SaveTrace(dbTrace); saveErr != nil && a.logger != nil {
+				a.logger.Printf("Warning: Failed to save TypeScript trace to database: %v", saveErr)
+			}
+		}()
+	}
+
+	return err
 }
 
 // sendToolResult sends a tool result to the WebSocket client

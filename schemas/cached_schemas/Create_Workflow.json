@@ -1,0 +1,19 @@
+{
+  "name": "Create_Workflow",
+  "description": "Create_Workflow creates a new workflow with TypeScript code that can be run later\nReturns the workflow ID that can be used to run the workflow\nThe workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills\nUnlike Execute_TypeScript, workflows have no timeout and run in the background",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "code": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "name",
+      "code"
+    ]
+  }
+}

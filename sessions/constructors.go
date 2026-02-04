@@ -46,3 +46,9 @@ func NewHTTPSession(conversationID string, agent AgentInterface, store stores.Me
 		Logger:         logger,
 	}
 }
+
+// SetTraceStore sets the trace store for execution trace persistence
+// This allows traces to be saved to the database in addition to being sent over WebSocket
+func (as *AgentSession) SetTraceStore(traceStore stores.TraceStore) {
+	as.TraceStore = traceStore
+}

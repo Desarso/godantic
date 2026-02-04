@@ -1,0 +1,15 @@
+{
+  "name": "Unschedule_Workflow",
+  "description": "Unschedule_Workflow removes the schedule from a workflow\nThe workflow will no longer run automatically but can still be run manually",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

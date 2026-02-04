@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 //go:generate ../../gen_schema -func=Search -file=search.go -out=../schemas/cached_schemas
@@ -38,6 +39,12 @@ type PerplexityResponse struct {
 
 // Search is a tool to search the web using Perplexity's API
 func Search(query string) (string, error) {
+	// Validate query is not empty
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return "", fmt.Errorf("search query cannot be empty")
+	}
+
 	apiKey := os.Getenv("PERPLEXITY_API_KEY")
 	if apiKey == "" {
 		return "", fmt.Errorf("PERPLEXITY_API_KEY environment variable not set")
