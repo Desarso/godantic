@@ -227,9 +227,10 @@ func getWorkflowDir(workflowID string) string {
 }
 
 // Create_Workflow creates a new workflow with TypeScript code that can be run later
-// Returns the workflow ID that can be used to run the workflow
+// Returns the workflow ID and a URL that can be used to view the workflow
 // The workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills
 // Unlike Execute_TypeScript, workflows have no timeout and run in the background
+// IMPORTANT: Always present the returned URL to the user as a clickable markdown link, e.g. [View Workflow](url)
 func Create_Workflow(name string, code string) (string, error) {
 	if code == "" {
 		return "", fmt.Errorf("workflow code cannot be empty")
@@ -281,7 +282,14 @@ func Create_Workflow(name string, code string) (string, error) {
 		return "", fmt.Errorf("failed to save workflow status: %v", err)
 	}
 
-	return fmt.Sprintf("Workflow created successfully.\nWorkflow ID: %s\nName: %s\n\nUse Run_Workflow(\"%s\") to start the workflow.", workflowID, name, workflowID), nil
+	// Get frontend URL for workflow link
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:5173"
+	}
+	workflowURL := fmt.Sprintf("%s/workflows/%s", frontendURL, workflowID)
+
+	return fmt.Sprintf("Workflow created successfully.\nWorkflow ID: %s\nName: %s\nURL: %s\n\nUse Run_Workflow(\"%s\") to start the workflow.", workflowID, name, workflowURL, workflowID), nil
 }
 
 // Run_Workflow starts a workflow in the background
