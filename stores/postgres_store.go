@@ -236,13 +236,26 @@ func (s *PostgresStore) ListConversations() ([]string, error) {
 }
 
 // ListConversationsForUser returns all conversations with details for a specific user
+// MessageCount is computed on the fly from the messages table
 func (s *PostgresStore) ListConversationsForUser(userID string) ([]ConversationInfo, error) {
 	if s.db == nil {
 		return nil, fmt.Errorf("database connection is nil")
 	}
 
-	var convs []Conversation
-	if err := s.db.Where("user_id = ?", userID).Order("updated_at DESC").Find(&convs).Error; err != nil {
+	// Query conversations with computed message count via subquery
+	type ConvWithCount struct {
+		Conversation
+		ComputedMessageCount int `gorm:"column:computed_message_count"`
+	}
+
+	var convs []ConvWithCount
+	err := s.db.Model(&Conversation{}).
+		Select("conversations.*, (SELECT COUNT(*) FROM messages WHERE messages.conversation_id = conversations.conversation_id) as computed_message_count").
+		Where("user_id = ?", userID).
+		Order("updated_at DESC").
+		Find(&convs).Error
+
+	if err != nil {
 		return nil, fmt.Errorf("failed to fetch conversations: %w", err)
 	}
 
@@ -252,7 +265,7 @@ func (s *PostgresStore) ListConversationsForUser(userID string) ([]ConversationI
 			ConversationID: c.ConversationID,
 			UserID:         c.UserID,
 			Title:          c.Title,
-			MessageCount:   c.MessageCount,
+			MessageCount:   c.ComputedMessageCount, // Use computed count, not stored
 			CreatedAt:      c.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			UpdatedAt:      c.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
