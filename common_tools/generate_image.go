@@ -13,8 +13,8 @@ import (
 
 //go:generate ../../gen_schema -func=Generate_Image -file=generate_image.go -out=../schemas/cached_schemas
 
-// Generate_Image generates an image using Gemini's image generation model
-// Saves the image to a file and returns a markdown formatted URL
+// Generate_Image generates an image using Gemini's image generation model.
+// The generated image is automatically displayed in the UI - do NOT include the image URL in your response to avoid showing duplicate images.
 func Generate_Image(prompt string) (string, error) {
 	// If prompt is empty, use "nano banana" as default
 	if strings.TrimSpace(prompt) == "" {
