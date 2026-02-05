@@ -864,10 +864,10 @@ func getToolStartLabel(toolName string, args map[string]interface{}) string {
 		}
 		return "Reading skill"
 	case "Browser_Navigate":
-		if url, ok := args["url"].(string); ok {
-			return fmt.Sprintf("Navigating to %s", url)
+		if path, ok := args["path"].(string); ok {
+			return fmt.Sprintf("Navigating to %s", path)
 		}
-		return "Opening browser"
+		return "Navigating"
 	case "Confirm_With_User":
 		return "Waiting for confirmation"
 	default:
@@ -930,10 +930,10 @@ func getToolEndLabel(toolName string, args map[string]interface{}) string {
 		}
 		return "Read skill"
 	case "Browser_Navigate":
-		if url, ok := args["url"].(string); ok {
-			return fmt.Sprintf("Navigated to %s", url)
+		if path, ok := args["path"].(string); ok {
+			return fmt.Sprintf("Navigated to %s", path)
 		}
-		return "Opened browser"
+		return "Navigated"
 	case "Confirm_With_User":
 		return "User responded"
 	default:
@@ -973,7 +973,18 @@ func (as *AgentSession) executeTypeScriptWithTracing(fc functionCallInfo) (strin
 		logger:         as.Logger,
 	}
 
-	return common_tools.Execute_TypeScriptWithTracing(code, traceEmitter)
+	// Create a frontend action handler for navigate/alert actions from TypeScript
+	// Uses a dedicated ResponseWaiter for frontend action responses
+	frontendActionWaiter := NewResponseWaiter()
+	frontendHandler := &WebSocketFrontendActionHandler{
+		Writer: as.Writer,
+		Waiter: frontendActionWaiter,
+	}
+
+	// Store the waiter so we can route frontend_action_response messages to it
+	as.FrontendActionWaiter = frontendActionWaiter
+
+	return common_tools.Execute_TypeScriptWithTracing(code, traceEmitter, frontendHandler)
 }
 
 // wsTraceEmitterAdapter adapts WebSocketTraceEmitter to common_tools.TraceEmitter

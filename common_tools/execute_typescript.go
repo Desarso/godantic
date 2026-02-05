@@ -40,6 +40,24 @@ type TraceEmitter interface {
 	EmitTrace(trace TraceEvent) error
 }
 
+// FrontendAction represents an action to be executed in the frontend browser
+type FrontendAction struct {
+	Action    string                 `json:"action"`
+	Data      map[string]interface{} `json:"data"`
+	Timestamp int64                  `json:"timestamp"`
+}
+
+// FrontendActionEmitter is an interface for emitting frontend actions via WebSocket
+type FrontendActionEmitter interface {
+	EmitFrontendAction(action FrontendAction) error
+}
+
+// FrontendActionHandler handles frontend actions with round-trip (waits for response)
+type FrontendActionHandler interface {
+	// HandleFrontendAction sends action to frontend and waits for response
+	HandleFrontendAction(action FrontendAction) (response string, err error)
+}
+
 // findBun attempts to locate the Bun executable
 func findBun() (string, error) {
 	// Try common installation paths
@@ -71,7 +89,7 @@ func findBun() (string, error) {
 // Built-in libraries: web (HTTP requests), tavily (search), math (mathjs library), graph (Microsoft Graph API), skills (manage skill files)
 // Skills API: skills.list(), skills.read(name), skills.create(name, content), skills.edit(name, old, new), skills.remove(name)
 // Safety rules:
-// - 30 second execution timeout
+// - 60 second execution timeout
 // - No direct file system access (use skills API for skill files)
 // - No process manipulation
 // - Input validation in TypeScript executor
@@ -81,7 +99,12 @@ func Execute_TypeScript(code string) (string, error) {
 
 // Execute_TypeScriptWithTracing executes TypeScript code and streams trace events
 // If traceEmitter is nil, traces are silently discarded (backward compatible)
-func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (string, error) {
+// If frontendHandler is nil, frontend actions from TypeScript will fail
+func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, frontendHandler ...FrontendActionHandler) (string, error) {
+	var feHandler FrontendActionHandler
+	if len(frontendHandler) > 0 {
+		feHandler = frontendHandler[0]
+	}
 	// Basic validation
 	if code == "" {
 		return "", fmt.Errorf("TypeScript code cannot be empty")
@@ -94,7 +117,7 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (stri
 	}
 
 	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	// Get the path to the TypeScript executor
@@ -110,17 +133,22 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (stri
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 
-	// For stderr, we need to parse trace events in real-time if we have a trace emitter
+	// Set up stdin pipe for sending responses back to TypeScript
+	var stdinPipe io.WriteCloser
+	if feHandler != nil {
+		stdinPipe, err = cmd.StdinPipe()
+		if err != nil {
+			return "", fmt.Errorf("failed to create stdin pipe: %v", err)
+		}
+	}
+
+	// For stderr, we need to parse trace events and frontend action requests
 	var stderr bytes.Buffer
 	var stderrPipe io.ReadCloser
 
-	if traceEmitter != nil {
-		stderrPipe, err = cmd.StderrPipe()
-		if err != nil {
-			return "", fmt.Errorf("failed to create stderr pipe: %v", err)
-		}
-	} else {
-		cmd.Stderr = &stderr
+	stderrPipe, err = cmd.StderrPipe()
+	if err != nil {
+		return "", fmt.Errorf("failed to create stderr pipe: %v", err)
 	}
 
 	// Start the command
@@ -128,17 +156,15 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (stri
 		return "", fmt.Errorf("failed to start TypeScript executor: %v", err)
 	}
 
-	// If we have a trace emitter, parse stderr for trace events
-	if traceEmitter != nil {
-		go processStderrForTraces(stderrPipe, traceEmitter, &stderr)
-	}
+	// Process stderr for traces and frontend action requests
+	go processStderrWithFrontendActions(stderrPipe, traceEmitter, feHandler, stdinPipe, &stderr)
 
 	// Wait for command to finish
 	err = cmd.Wait()
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("execution timeout: code took longer than 30 seconds")
+		return "", fmt.Errorf("execution timeout: code took longer than 60 seconds")
 	}
 
 	// Parse the JSON response
@@ -194,13 +220,17 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (stri
 	return "", fmt.Errorf("execution failed: no output received")
 }
 
-// processStderrForTraces reads stderr line by line, extracts trace events,
-// and collects non-trace output into the stderr buffer
-func processStderrForTraces(pipe io.ReadCloser, emitter TraceEmitter, nonTraceOutput *bytes.Buffer) {
+// processStderrWithFrontendActions reads stderr line by line, extracts trace events
+// and frontend action requests, sends responses back via stdin
+func processStderrWithFrontendActions(pipe io.ReadCloser, traceEmitter TraceEmitter, feHandler FrontendActionHandler, stdinPipe io.WriteCloser, nonTraceOutput *bytes.Buffer) {
 	defer pipe.Close()
+	if stdinPipe != nil {
+		defer stdinPipe.Close()
+	}
 
 	scanner := bufio.NewScanner(pipe)
 	const tracePrefix = "__TRACE__"
+	const frontendActionRequestPrefix = "__FRONTEND_ACTION_REQUEST__"
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -211,11 +241,40 @@ func processStderrForTraces(pipe io.ReadCloser, emitter TraceEmitter, nonTraceOu
 			jsonStr := strings.TrimPrefix(line, tracePrefix)
 			var trace TraceEvent
 			if err := json.Unmarshal([]byte(jsonStr), &trace); err == nil {
-				// Emit trace event (errors are silently ignored - non-critical)
-				_ = emitter.EmitTrace(trace)
+				if traceEmitter != nil {
+					_ = traceEmitter.EmitTrace(trace)
+				}
+			}
+		} else if strings.HasPrefix(line, frontendActionRequestPrefix) {
+			// Parse frontend action request
+			jsonStr := strings.TrimPrefix(line, frontendActionRequestPrefix)
+			var action FrontendAction
+			if err := json.Unmarshal([]byte(jsonStr), &action); err == nil {
+				// Handle the action and get response
+				var response string
+				var actionErr error
+				if feHandler != nil {
+					response, actionErr = feHandler.HandleFrontendAction(action)
+				} else {
+					actionErr = fmt.Errorf("frontend action handler not available")
+				}
+
+				// Send response back to TypeScript via stdin
+				if stdinPipe != nil {
+					resp := map[string]interface{}{
+						"success": actionErr == nil,
+					}
+					if actionErr != nil {
+						resp["error"] = actionErr.Error()
+					} else {
+						resp["response"] = response
+					}
+					respJSON, _ := json.Marshal(resp)
+					stdinPipe.Write([]byte(fmt.Sprintf("__FRONTEND_ACTION_RESPONSE__%s\n", string(respJSON))))
+				}
 			}
 		} else {
-			// Not a trace, collect as regular stderr output
+			// Not a trace or action request, collect as regular stderr output
 			nonTraceOutput.WriteString(line)
 			nonTraceOutput.WriteString("\n")
 		}

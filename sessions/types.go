@@ -2,11 +2,13 @@ package sessions
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
+	common_tools "github.com/Desarso/godantic/common_tools"
 	"github.com/Desarso/godantic/models"
 	"github.com/Desarso/godantic/stores"
 	"github.com/gorilla/websocket"
@@ -141,6 +143,41 @@ func (e *WebSocketTraceEmitter) EmitTrace(trace TraceEvent) error {
 	return e.Writer.WriteResponse(msg)
 }
 
+// WebSocketFrontendActionHandler implements FrontendActionHandler by sending actions over WebSocket and waiting for response
+type WebSocketFrontendActionHandler struct {
+	Writer *WebSocketWriter
+	Waiter *ResponseWaiter
+}
+
+// FrontendActionMessage is the WebSocket message format for frontend actions
+type FrontendActionMessage struct {
+	Type      string                 `json:"type"`
+	Action    string                 `json:"action"`
+	Data      map[string]interface{} `json:"data"`
+	Timestamp int64                  `json:"timestamp"`
+}
+
+// HandleFrontendAction sends a frontend action over WebSocket and waits for response
+func (h *WebSocketFrontendActionHandler) HandleFrontendAction(action common_tools.FrontendAction) (string, error) {
+	msg := FrontendActionMessage{
+		Type:      "frontend_action",
+		Action:    action.Action,
+		Data:      action.Data,
+		Timestamp: action.Timestamp,
+	}
+	if err := h.Writer.WriteResponse(msg); err != nil {
+		return "", fmt.Errorf("failed to send frontend action: %w", err)
+	}
+
+	// Wait for response from frontend
+	response, ok := h.Waiter.WaitForResponse()
+	if !ok {
+		return "", fmt.Errorf("timeout waiting for frontend action response")
+	}
+
+	return response, nil
+}
+
 // ResponseWaiter allows tools to wait for user input from the frontend
 type ResponseWaiter struct {
 	responseChan chan string
@@ -225,6 +262,7 @@ type AgentSession struct {
 	Logger               *log.Logger
 	History              []stores.Message
 	ResponseWaiter       *ResponseWaiter
+	FrontendActionWaiter *ResponseWaiter      // For frontend actions from TypeScript
 	FrontendToolExecutor FrontendToolExecutor // Optional: for handling frontend tools
 	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
 	Memory               MemoryManager        // Optional: for memory storage and retrieval
