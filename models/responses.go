@@ -1,7 +1,16 @@
 package models
 
+// HistoryWarning represents a warning about content that was filtered/modified
+// when adapting conversation history for a specific model
+type HistoryWarning struct {
+	Type    string `json:"type"`    // "unsupported_content", "conversion_error", etc.
+	Message string `json:"message"` // Human-readable description
+	Details string `json:"details"` // Additional details (e.g., which message, what content)
+}
+
 type Model_Response struct {
-	Parts []Model_Part `json:"parts"`
+	Parts    []Model_Part     `json:"parts"`
+	Warnings []HistoryWarning `json:"warnings,omitempty"` // Warnings about history adaptation (only sent in first chunk)
 }
 
 //may be a string or a function call and it will be parts

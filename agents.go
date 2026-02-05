@@ -418,3 +418,19 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 func (agent *Agent) ApproveTool(name string, args map[string]interface{}) (bool, error) {
 	return Tool_Approver(name, args)
 }
+
+// HistoryWarner is an optional interface that models can implement
+// to report warnings when adapting conversation history
+type HistoryWarner interface {
+	SetHistoryWarningCallback(callback func(warnings []models.HistoryWarning))
+}
+
+// SetHistoryWarningCallback sets a callback for history warnings if the model supports it
+// Returns true if the model supports warnings, false otherwise
+func (agent *Agent) SetHistoryWarningCallback(callback func(warnings []models.HistoryWarning)) bool {
+	if warner, ok := agent.Model.(HistoryWarner); ok {
+		warner.SetHistoryWarningCallback(callback)
+		return true
+	}
+	return false
+}

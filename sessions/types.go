@@ -269,4 +269,7 @@ type AgentInterface interface {
 	Run_Stream(request models.Model_Request, history []stores.Message) (<-chan models.Model_Response, <-chan error)
 	ExecuteTool(name string, args map[string]interface{}, sessionID string) (string, error)
 	ApproveTool(name string, args map[string]interface{}) (bool, error)
+	// SetHistoryWarningCallback sets a callback for history warnings if the model supports it
+	// Returns true if the model supports warnings, false otherwise
+	SetHistoryWarningCallback(callback func(warnings []models.HistoryWarning)) bool
 }

@@ -37,8 +37,15 @@ func init() {
 }
 
 type Gemini_Model struct {
-	Model        string `json:"model"`
-	SystemPrompt string `json:"system_prompt,omitempty"`
+	Model           string                                 `json:"model"`
+	SystemPrompt    string                                 `json:"system_prompt,omitempty"`
+	WarningCallback func(warnings []models.HistoryWarning) `json:"-"` // Called when history is adapted with warnings
+}
+
+// SetHistoryWarningCallback sets the callback function for history adaptation warnings
+// This implements the HistoryWarner interface
+func (g *Gemini_Model) SetHistoryWarningCallback(callback func(warnings []models.HistoryWarning)) {
+	g.WarningCallback = callback
 }
 
 func (g *Gemini_Model) Model_Request(request models.Model_Request, tools []models.FunctionDeclaration, conversationHistory []stores.Message) (models.Model_Response, error) {
@@ -161,12 +168,18 @@ func (g *Gemini_Model) Stream_Model_Request(request models.Model_Request, tools 
 }
 
 func (g *Gemini_Model) model_request(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (Gemini_response, error) {
-	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
+	result, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
 	if err != nil {
 		return Gemini_response{}, fmt.Errorf("failed to create gemini request: %w", err)
 	}
+
+	// Call warning callback if there are warnings and callback is set
+	if len(result.Warnings) > 0 && g.WarningCallback != nil {
+		g.WarningCallback(result.Warnings)
+	}
+
 	//save request_body to json
-	jsonBytes, err := json.Marshal(request_body)
+	jsonBytes, err := json.Marshal(result.Body)
 	if err != nil {
 		return Gemini_response{}, fmt.Errorf("failed to marshal request body: %w", err)
 	}
@@ -180,7 +193,7 @@ func (g *Gemini_Model) model_request(model string, message models.User_Message, 
 
 func (g *Gemini_Model) stream_model_request(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message) (<-chan Gemini_response, <-chan error) {
 	// create_gemini_request now handles potentially empty 'message' if 'toolResults' is present
-	request_body, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
+	result, err := create_gemini_request(message, tools, toolResults, conversationHistory, g.SystemPrompt)
 	if err != nil {
 		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("failed to create gemini stream request body: %w", err)
@@ -191,7 +204,12 @@ func (g *Gemini_Model) stream_model_request(model string, message models.User_Me
 		return respChan, errChan
 	}
 
-	jsonBytes, err := json.MarshalIndent(request_body, "", "  ") // Use MarshalIndent for logging
+	// Call warning callback if there are warnings and callback is set
+	if len(result.Warnings) > 0 && g.WarningCallback != nil {
+		g.WarningCallback(result.Warnings)
+	}
+
+	jsonBytes, err := json.MarshalIndent(result.Body, "", "  ") // Use MarshalIndent for logging
 	if err != nil {
 		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("failed to marshal stream request body: %w", err)
@@ -531,13 +549,20 @@ func getInlineData(url string) string {
 	return encodedData
 }
 
-// functio that turns User_Message to something gemini likes
-func create_gemini_request(message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, systemPrompt string) (Gemini_Request_Body, error) {
+// GeminiRequestResult contains the request body and any warnings generated during history adaptation
+type GeminiRequestResult struct {
+	Body     Gemini_Request_Body
+	Warnings []models.HistoryWarning
+}
 
+// create_gemini_request turns User_Message to something gemini likes
+// Returns the request body and any warnings about content that was filtered/skipped
+func create_gemini_request(message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, systemPrompt string) (GeminiRequestResult, error) {
+	var warnings []models.HistoryWarning
 	allContents := []Gemini_Content{}
 
 	// 1. Process conversation history
-	for _, histMsg := range conversationHistory {
+	for msgIdx, histMsg := range conversationHistory {
 		role := histMsg.Role // Use the role directly from history
 		var historyParts []Request_Part
 
@@ -548,55 +573,171 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 				var userParts []models.User_Part
 				if err := json.Unmarshal([]byte(histMsg.PartsJSON), &userParts); err != nil {
 					log.Printf("Warning: Failed to unmarshal PartsJSON for user history message %d: %v. Content: %s", histMsg.ID, err, histMsg.PartsJSON)
-					// Decide how to handle error - skip message? create error part?
+					warnings = append(warnings, models.HistoryWarning{
+						Type:    "parse_error",
+						Message: "Failed to parse message content",
+						Details: fmt.Sprintf("Message %d: %v", msgIdx+1, err),
+					})
 					continue // Skip this history message if unmarshalling fails
 				}
-				// Convert []models.User_Part to []Request_Part
-				historyParts = make([]Request_Part, len(userParts))
-				for i, p := range userParts {
-					// Manual conversion for InlineData
+				// Convert []models.User_Part to []Request_Part, filtering out empty parts
+				historyParts = []Request_Part{}
+				for _, p := range userParts {
+					// Manual conversion for InlineData and FileData
 					var inlineDataPart *InlineData
+					var fileDataPart *FileData
+
 					if p.InlineData != nil {
 						inlineDataPart = &InlineData{
 							MimeType: p.InlineData.MimeType,
 							Data:     p.InlineData.Data,
 						}
 					}
-					// Manual conversion for FileData
-					var fileDataPart *FileData
-					if p.FileData != nil {
-						fileDataPart = &FileData{
-							MimeType: p.FileData.MimeType,
-							URI:      "", // URI is generated/used internally by Gemini request logic, not directly from User_Part FileData which has FileUrl/GoogleUri
+					// Handle ImageData by converting to FileData (upload to Gemini if needed)
+					// ImageData is stored by other models but Gemini uses FileData format
+					if p.ImageData != nil && inlineDataPart == nil {
+						if p.ImageData.FileUrl != "" {
+							// Try to upload the image to Gemini from the public URL
+							log.Printf("Converting ImageData to Gemini format: uploading from %s", p.ImageData.FileUrl)
+							if lessThan2mb(p.ImageData.FileUrl) {
+								// Try inline first for small images
+								inline := getInlineData(p.ImageData.FileUrl)
+								if inline != "" {
+									inlineDataPart = &InlineData{
+										MimeType: p.ImageData.MimeType,
+										Data:     inline,
+									}
+									log.Printf("Successfully inlined ImageData from history")
+								}
+							}
+							// If inline didn't work or file is too large, upload to Gemini
+							if inlineDataPart == nil {
+								uri, err := uploadFileFromURLToGemini(p.ImageData.FileUrl)
+								if err != nil {
+									log.Printf("Warning: Failed to upload ImageData to Gemini: %v", err)
+									warnings = append(warnings, models.HistoryWarning{
+										Type:    "upload_failed",
+										Message: "Failed to transfer image to Gemini",
+										Details: "Image could not be uploaded to Gemini's file storage",
+									})
+								} else {
+									fileDataPart = &FileData{
+										MimeType: p.ImageData.MimeType,
+										URI:      uri,
+									}
+									log.Printf("Successfully uploaded ImageData to Gemini: %s", uri)
+								}
+							}
+						} else {
+							log.Printf("Warning: ImageData has no FileUrl, cannot transfer to Gemini")
+							warnings = append(warnings, models.HistoryWarning{
+								Type:    "unsupported_content",
+								Message: "Image not available for Gemini",
+								Details: "Image has no accessible URL",
+							})
 						}
-						// Note: The logic below this history loop handles FileUrl/GoogleUri from the *current* message.
-						// History reconstruction primarily needs the MimeType if FileData existed.
+					}
+					// Handle FileData
+					if p.FileData != nil {
+						// Use GoogleUri if available
+						if p.FileData.GoogleUri != nil && *p.FileData.GoogleUri != "" {
+							fileDataPart = &FileData{
+								MimeType: p.FileData.MimeType,
+								URI:      *p.FileData.GoogleUri,
+							}
+						} else if p.FileData.FileUrl != "" {
+							// No GoogleUri but we have FileUrl - upload to Gemini
+							log.Printf("FileData has no GoogleUri, uploading from FileUrl: %s", p.FileData.FileUrl)
+							if lessThan2mb(p.FileData.FileUrl) {
+								// Try inline first for small files (images)
+								inline := getInlineData(p.FileData.FileUrl)
+								if inline != "" {
+									inlineDataPart = &InlineData{
+										MimeType: p.FileData.MimeType,
+										Data:     inline,
+									}
+									log.Printf("Successfully inlined FileData from history")
+								}
+							}
+							// If inline didn't work or file is too large, upload to Gemini
+							if inlineDataPart == nil {
+								uri, err := uploadFileFromURLToGemini(p.FileData.FileUrl)
+								if err != nil {
+									log.Printf("Warning: Failed to upload FileData to Gemini: %v", err)
+									warnings = append(warnings, models.HistoryWarning{
+										Type:    "upload_failed",
+										Message: "Failed to transfer file to Gemini",
+										Details: "File could not be uploaded to Gemini's file storage",
+									})
+								} else {
+									fileDataPart = &FileData{
+										MimeType: p.FileData.MimeType,
+										URI:      uri,
+									}
+									log.Printf("Successfully uploaded FileData to Gemini: %s", uri)
+								}
+							}
+						} else {
+							log.Printf("Warning: FileData has no GoogleUri or FileUrl, cannot use")
+							warnings = append(warnings, models.HistoryWarning{
+								Type:    "unsupported_content",
+								Message: "File not available for Gemini",
+								Details: "File has no accessible URL",
+							})
+						}
 					}
 
-					historyParts[i] = Request_Part{
+					// Create the part
+					reqPart := Request_Part{
 						Text:             p.Text,
-						InlineData:       inlineDataPart, // Use converted struct
-						FileData:         fileDataPart,   // Use converted struct
+						InlineData:       inlineDataPart,
+						FileData:         fileDataPart,
 						FunctionResponse: p.FunctionResponse,
+					}
+
+					// Only add non-empty parts (Gemini requires at least one field to be set)
+					if reqPart.Text != "" || reqPart.InlineData != nil || reqPart.FileData != nil || reqPart.FunctionResponse != nil {
+						historyParts = append(historyParts, reqPart)
+					} else {
+						log.Printf("Warning: Skipping empty user part in history (no text, inline_data, file_data, or function_response)")
 					}
 				}
 			} else if role == "model" {
 				var modelParts []models.Model_Part
 				if err := json.Unmarshal([]byte(histMsg.PartsJSON), &modelParts); err != nil {
 					log.Printf("Warning: Failed to unmarshal PartsJSON for model history message %d: %v. Content: %s", histMsg.ID, err, histMsg.PartsJSON)
+					warnings = append(warnings, models.HistoryWarning{
+						Type:    "parse_error",
+						Message: "Failed to parse assistant response",
+						Details: fmt.Sprintf("Message %d: %v", msgIdx+1, err),
+					})
 					continue // Skip this history message
 				}
-				// Convert []models.Model_Part to []Request_Part
-				historyParts = make([]Request_Part, len(modelParts))
-				for i, p := range modelParts {
+				// Convert []models.Model_Part to []Request_Part, filtering out empty parts
+				historyParts = []Request_Part{}
+				for _, p := range modelParts {
 					// Handle potential nil pointer for Text
 					var textContent string
 					if p.Text != nil {
 						textContent = *p.Text
 					}
-					historyParts[i] = Request_Part{
+
+					// Note: Reasoning field from Model_Part is not sent to Gemini
+					// (it's internal chain-of-thought that other models may have)
+					if p.Reasoning != nil && *p.Reasoning != "" {
+						log.Printf("Note: Reasoning content from previous model not included in Gemini history")
+					}
+
+					reqPart := Request_Part{
 						Text:         textContent,
-						FunctionCall: p.FunctionCall, // Assuming FunctionCall struct matches
+						FunctionCall: p.FunctionCall,
+					}
+
+					// Only add non-empty parts (Gemini requires at least one field to be set)
+					if reqPart.Text != "" || reqPart.FunctionCall != nil {
+						historyParts = append(historyParts, reqPart)
+					} else {
+						log.Printf("Warning: Skipping empty model part in history (no text or function_call)")
 					}
 				}
 			} else {
@@ -627,8 +768,7 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 		for _, tr := range *toolResults {
 			var respMap map[string]interface{}
 			if err := json.Unmarshal([]byte(tr.Tool_Output), &respMap); err != nil {
-				log.Printf("Warning: Failed to unmarshal tool output for %s as JSON: %v. Wrapping as {\"output\": ...}.", tr.Tool_Name, err)
-				// Wrap non-JSON output in a standard structure
+				// Not JSON - wrap plain text output (normal for Execute_TypeScript)
 				respMap = map[string]interface{}{"output": tr.Tool_Output}
 			}
 			// Create a single part for this function response
@@ -665,7 +805,7 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 								log.Printf("Failed to get inline data for %s, attempting upload.", part.FileData.FileUrl)
 								uri, err = uploadFileFromURLToGemini(part.FileData.FileUrl)
 								if err != nil {
-									return Gemini_Request_Body{}, fmt.Errorf("failed to upload file %s after failed inline attempt: %w", part.FileData.FileUrl, err)
+									return GeminiRequestResult{}, fmt.Errorf("failed to upload file %s after failed inline attempt: %w", part.FileData.FileUrl, err)
 								}
 								log.Printf("Uploaded file %s to %s", part.FileData.FileUrl, uri)
 								currentUserParts = append(currentUserParts, Request_Part{FileData: &FileData{URI: uri, MimeType: part.FileData.MimeType}})
@@ -673,7 +813,7 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 						} else {
 							uri, err = uploadFileFromURLToGemini(part.FileData.FileUrl)
 							if err != nil {
-								return Gemini_Request_Body{}, fmt.Errorf("failed to upload file %s to gemini: %w", part.FileData.FileUrl, err)
+								return GeminiRequestResult{}, fmt.Errorf("failed to upload file %s to gemini: %w", part.FileData.FileUrl, err)
 							}
 							log.Printf("Uploaded file %s to %s", part.FileData.FileUrl, uri)
 							currentUserParts = append(currentUserParts, Request_Part{FileData: &FileData{URI: uri, MimeType: part.FileData.MimeType}})
@@ -701,7 +841,7 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 
 	// Check if we have anything to send at all (history, tool results, or user message)
 	if len(allContents) == 0 {
-		return Gemini_Request_Body{}, fmt.Errorf("cannot create Gemini request with no content (history, tool results, or user message)")
+		return GeminiRequestResult{}, fmt.Errorf("cannot create Gemini request with no content (history, tool results, or user message)")
 	}
 
 	// 4. Prepare tools
@@ -724,5 +864,27 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 		SystemInstruction: systemInstruction,
 	}
 
-	return request_body, nil
+	// Deduplicate warnings before returning
+	warnings = deduplicateWarnings(warnings)
+
+	return GeminiRequestResult{
+		Body:     request_body,
+		Warnings: warnings,
+	}, nil
+}
+
+// deduplicateWarnings removes duplicate warnings based on type and message
+func deduplicateWarnings(warnings []models.HistoryWarning) []models.HistoryWarning {
+	seen := make(map[string]bool)
+	result := []models.HistoryWarning{}
+
+	for _, w := range warnings {
+		key := w.Type + ":" + w.Message
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, w)
+		}
+	}
+
+	return result
 }

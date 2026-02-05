@@ -108,3 +108,52 @@ type Gemini_Content struct {
 type Gemini_Tools struct {
 	FunctionDeclarations []models.FunctionDeclaration `json:"functionDeclarations"`
 }
+
+// GeminiFunctionDeclaration is a sanitized version of FunctionDeclaration for Gemini API
+type GeminiFunctionDeclaration struct {
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	Parameters  GeminiParameters `json:"parameters"`
+}
+
+// GeminiParameters ensures proper JSON structure for Gemini API
+type GeminiParameters struct {
+	Type       string                 `json:"type"`
+	Properties map[string]interface{} `json:"properties"`
+	Required   []string               `json:"required,omitempty"`
+}
+
+// ConvertToGeminiFunctionDeclarations converts standard FunctionDeclarations to Gemini-safe format
+func ConvertToGeminiFunctionDeclarations(fds []models.FunctionDeclaration) []GeminiFunctionDeclaration {
+	result := make([]GeminiFunctionDeclaration, len(fds))
+	for i, fd := range fds {
+		params := GeminiParameters{
+			Type:       fd.Parameters.Type,
+			Properties: fd.Parameters.Properties,
+			Required:   fd.Parameters.Required,
+		}
+
+		// Ensure properties is an empty object instead of null
+		if params.Properties == nil {
+			params.Properties = make(map[string]interface{})
+		}
+
+		// For Gemini, required can be omitted if empty (omitempty tag)
+		// But ensure it's not null if it has values
+		if params.Required == nil {
+			params.Required = []string{}
+		}
+
+		// Default type to "object" if not set
+		if params.Type == "" {
+			params.Type = "object"
+		}
+
+		result[i] = GeminiFunctionDeclaration{
+			Name:        fd.Name,
+			Description: fd.Description,
+			Parameters:  params,
+		}
+	}
+	return result
+}

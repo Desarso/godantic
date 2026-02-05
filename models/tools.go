@@ -3,11 +3,12 @@ package models
 type FunctionDeclaration struct {
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
-	Parameters  parameters  `json:"parameters"`
+	Parameters  Parameters  `json:"parameters"`
 	Callable    interface{} `json:"-"`
 }
 
-type parameters struct {
+// Parameters defines the JSON Schema for function parameters
+type Parameters struct {
 	Type       string                 `json:"type"`
 	Properties map[string]interface{} `json:"properties"`
 	Required   []string               `json:"required"`

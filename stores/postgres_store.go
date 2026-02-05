@@ -149,6 +149,7 @@ func (s *PostgresStore) SaveMessageWithUser(sessionID, userID, role, messageType
 
 // FetchHistory retrieves messages for a conversation in sequence order
 // limit: maximum number of messages to retrieve (0 = return all messages)
+// The returned history is sanitized to ensure valid turn structure for LLM APIs.
 func (s *PostgresStore) FetchHistory(sessionID string, limit int) ([]Message, error) {
 	if s.db == nil {
 		return nil, fmt.Errorf("database connection is nil")
@@ -165,14 +166,36 @@ func (s *PostgresStore) FetchHistory(sessionID string, limit int) ([]Message, er
 		}
 
 		// If more than limit, offset to get only last N messages
+		// Fetch extra to allow sanitization to find valid start point
+		// Need larger buffer because tool cycles can be long (multiple calls + responses)
 		if count > int64(limit) {
-			offset := int(count) - limit
+			// Fetch extra messages in case we need to skip orphaned function_responses
+			// Use 2x limit as buffer to handle long tool call sequences
+			extraBuffer := limit
+			if extraBuffer < 10 {
+				extraBuffer = 10
+			}
+			offset := int(count) - limit - extraBuffer
+			if offset < 0 {
+				offset = 0
+			}
 			query = query.Offset(offset)
 		}
 	}
 
 	if err := query.Find(&msgs).Error; err != nil {
 		return nil, fmt.Errorf("failed to fetch messages: %w", err)
+	}
+
+	// Sanitize history to ensure valid turn structure
+	// This handles truncation breaking tool cycles and corrupted history
+	msgs = SanitizeHistory(msgs)
+
+	// If we fetched extra and now have more than limit, trim to limit
+	if limit > 0 && len(msgs) > limit {
+		msgs = msgs[len(msgs)-limit:]
+		// Re-sanitize after trimming to ensure we still have valid start
+		msgs = SanitizeHistory(msgs)
 	}
 
 	return msgs, nil

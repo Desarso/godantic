@@ -43,6 +43,19 @@ func (as *AgentSession) RunInteraction(req models.Model_Request) error {
 // - BUT we create a fresh ElevenLabs context_id per turn so every response reliably produces audio.
 func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req models.Model_Request) error {
 
+	// Set up history warning callback to send warnings to frontend
+	// This is called when the model adapts conversation history and some content is filtered
+	warningsSent := false
+	as.Agent.SetHistoryWarningCallback(func(warnings []models.HistoryWarning) {
+		if len(warnings) > 0 && !warningsSent {
+			warningsSent = true
+			_ = as.Writer.WriteResponse(map[string]any{
+				"type":     "history_warnings",
+				"warnings": warnings,
+			})
+		}
+	})
+
 	// Keep the input mode stable across tool follow-ups.
 	inputMode := req.Input_Mode
 	if inputMode == "" {
@@ -63,14 +76,16 @@ func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req model
 			voiceLanguageCode = currentReq.Language_Code
 		}
 
-		// Fetch latest history
-		if err := as.fetchHistory(); err != nil {
-			return as.sendError("Failed to fetch history", false)
-		}
-
-		// Save user message or tool results if present
+		// Save user message or tool results if present BEFORE fetching history
+		// This ensures that when we fetch history, it includes the tool results we just saved
+		// (which are the responses to function_calls that were saved in the previous iteration)
 		if err := as.saveIncomingMessage(currentReq); err != nil {
 			as.Logger.Printf("Error saving incoming message: %v", err)
+		}
+
+		// Fetch latest history (after saving, so it includes the just-saved messages)
+		if err := as.fetchHistory(); err != nil {
+			return as.sendError("Failed to fetch history", false)
 		}
 
 		// Enable TTS streaming only for voice interactions.
@@ -205,8 +220,8 @@ func (as *AgentSession) saveToolResults(toolResults []models.Tool_Result) error 
 	for _, toolResult := range toolResults {
 		var resultMap map[string]interface{}
 		if err := json.Unmarshal([]byte(toolResult.Tool_Output), &resultMap); err != nil {
-			as.Logger.Printf("Failed to unmarshal tool output for DB saving (%s), storing raw: %v", toolResult.Tool_Name, err)
-			resultMap = map[string]interface{}{"raw_output": toolResult.Tool_Output}
+			// Not JSON - wrap plain text output (normal for Execute_TypeScript)
+			resultMap = map[string]interface{}{"output": toolResult.Tool_Output}
 		}
 
 		part := models.User_Part{
@@ -612,9 +627,11 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 				as.Logger.Printf("Error checking tool approval for %s (ID: %s): %v", fc.Name, fc.ID, err)
 				continue
 			} else if approved {
-				toolResult, err := as.executeTool(fc)
-				if err != nil {
-					as.Logger.Printf("Error executing tool %s (ID: %s): %v", fc.Name, fc.ID, err)
+				toolResult, execErr := as.executeTool(fc)
+				if execErr != nil {
+					as.Logger.Printf("Error executing tool %s (ID: %s): %v", fc.Name, fc.ID, execErr)
+					// Include error message in result so the model can see what went wrong
+					toolResult = fmt.Sprintf(`{"error": %q}`, execErr.Error())
 				}
 
 				// Send tool result to client
@@ -1014,8 +1031,9 @@ func (a *wsTraceEmitterAdapter) EmitTrace(trace common_tools.TraceEvent) error {
 func (as *AgentSession) sendToolResult(fc functionCallInfo, toolResultJSON string) error {
 	var resultData map[string]interface{}
 	if err := json.Unmarshal([]byte(toolResultJSON), &resultData); err != nil {
-		as.Logger.Printf("Failed to unmarshal tool result JSON for structured sending (tool: %s, ID: %s): %v. Sending raw JSON string.", fc.Name, fc.ID, err)
-		resultData = nil
+		// Not JSON - wrap plain text output in a structure
+		// This is normal for Execute_TypeScript which returns console.log output
+		resultData = map[string]interface{}{"output": toolResultJSON}
 	}
 
 	toolMsg := WebSocketToolResultMessage{

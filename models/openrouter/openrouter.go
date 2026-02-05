@@ -40,14 +40,22 @@ func init() {
 // OpenRouter_Model implements the Model interface for OpenRouter API
 // Also supports any OpenAI-compatible API endpoint
 type OpenRouter_Model struct {
-	Model        string // Model identifier (e.g., "openai/gpt-4o", "anthropic/claude-3-opus")
-	Temperature  *float64
-	MaxTokens    *int
-	SiteURL      string // Optional: Your site URL for OpenRouter rankings
-	SiteName     string // Optional: Your site name for OpenRouter rankings
-	SystemPrompt string // Optional: System prompt for the AI
-	BaseURL      string // Optional: Custom API base URL (defaults to OpenRouter)
-	APIKeyEnv    string // Optional: Environment variable name for API key (defaults to OPENROUTER_API_KEY)
+	Model           string // Model identifier (e.g., "openai/gpt-4o", "anthropic/claude-3-opus")
+	Temperature     *float64
+	MaxTokens       *int
+	SiteURL         string                                 // Optional: Your site URL for OpenRouter rankings
+	SiteName        string                                 // Optional: Your site name for OpenRouter rankings
+	SystemPrompt    string                                 // Optional: System prompt for the AI
+	BaseURL         string                                 // Optional: Custom API base URL (defaults to OpenRouter)
+	APIKeyEnv       string                                 // Optional: Environment variable name for API key (defaults to OPENROUTER_API_KEY)
+	SupportsVision  bool                                   // Whether the model supports image/vision input
+	WarningCallback func(warnings []models.HistoryWarning) `json:"-"` // Called when history is adapted with warnings
+}
+
+// SetHistoryWarningCallback sets the callback function for history adaptation warnings
+// This implements the HistoryWarner interface
+func (o *OpenRouter_Model) SetHistoryWarningCallback(callback func(warnings []models.HistoryWarning)) {
+	o.WarningCallback = callback
 }
 
 // Model_Request implements the Model interface
@@ -415,9 +423,66 @@ func (o *OpenRouter_Model) setHeaders(req *http.Request) {
 	}
 }
 
+// historyOrMessageContainsImages checks if the conversation history or current message contains any images
+func (o *OpenRouter_Model) historyOrMessageContainsImages(conversationHistory []stores.Message, message models.User_Message) bool {
+	// Check current message
+	for _, part := range message.Content.Parts {
+		if part.InlineData != nil && isImageMimeType(part.InlineData.MimeType) {
+			return true
+		}
+		if part.FileData != nil && isImageMimeType(part.FileData.MimeType) {
+			return true
+		}
+		if part.ImageData != nil {
+			return true
+		}
+	}
+
+	// Check conversation history
+	for _, histMsg := range conversationHistory {
+		if histMsg.Role != "user" || histMsg.PartsJSON == "" {
+			continue
+		}
+
+		var userParts []models.User_Part
+		if err := json.Unmarshal([]byte(histMsg.PartsJSON), &userParts); err != nil {
+			continue
+		}
+
+		for _, part := range userParts {
+			if part.InlineData != nil && isImageMimeType(part.InlineData.MimeType) {
+				return true
+			}
+			if part.FileData != nil && isImageMimeType(part.FileData.MimeType) {
+				return true
+			}
+			if part.ImageData != nil {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // createOpenRouterRequest builds the request body for OpenRouter API
 func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, stream bool) (OpenRouterRequest, error) {
 	messages := []Message{}
+	var allWarnings []models.HistoryWarning
+
+	// Check if we need to strip images (model doesn't support vision)
+	stripImages := !o.SupportsVision
+	if stripImages {
+		// Check if there are any images in history or current message that will be stripped
+		hasImages := o.historyOrMessageContainsImages(conversationHistory, message)
+		if hasImages {
+			allWarnings = append(allWarnings, models.HistoryWarning{
+				Type:    "images_stripped",
+				Message: "This model doesn't support images",
+				Details: "Images in conversation history were removed because the selected model doesn't support image input",
+			})
+		}
+	}
 
 	// Add system prompt as first message if provided
 	if o.SystemPrompt != "" {
@@ -429,11 +494,17 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 
 	// 1. Process conversation history
 	for _, histMsg := range conversationHistory {
-		msg, err := o.convertHistoryMessage(histMsg)
+		msg, warnings, err := o.convertHistoryMessageWithWarnings(histMsg, stripImages)
 		if err != nil {
 			log.Printf("Warning: Failed to convert history message %d: %v", histMsg.ID, err)
+			allWarnings = append(allWarnings, models.HistoryWarning{
+				Type:    "parse_error",
+				Message: "Failed to parse message content",
+				Details: err.Error(),
+			})
 			continue
 		}
+		allWarnings = append(allWarnings, warnings...)
 		if msg != nil {
 			messages = append(messages, *msg)
 		}
@@ -452,7 +523,7 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 		}
 	} else {
 		// 3. Process current user message only if no tool results
-		userMsg, err := o.convertUserMessage(message)
+		userMsg, err := o.convertUserMessage(message, stripImages)
 		if err != nil {
 			return OpenRouterRequest{}, fmt.Errorf("failed to convert user message: %w", err)
 		}
@@ -463,6 +534,13 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 
 	if len(messages) == 0 {
 		return OpenRouterRequest{}, fmt.Errorf("cannot create OpenRouter request with no messages")
+	}
+
+	// Call warning callback if there are warnings and callback is set
+	if len(allWarnings) > 0 && o.WarningCallback != nil {
+		// Deduplicate warnings
+		allWarnings = deduplicateWarnings(allWarnings)
+		o.WarningCallback(allWarnings)
 	}
 
 	// Build request
@@ -489,10 +567,14 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 	return request, nil
 }
 
-// convertHistoryMessage converts a stored message to OpenRouter Message format
-func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Message, error) {
+// convertHistoryMessageWithWarnings converts a stored message to OpenRouter Message format
+// Returns the message, any warnings generated, and any error
+// If stripImages is true, image content will be skipped
+func (o *OpenRouter_Model) convertHistoryMessageWithWarnings(histMsg stores.Message, stripImages bool) (*Message, []models.HistoryWarning, error) {
+	var warnings []models.HistoryWarning
+
 	if histMsg.PartsJSON == "" || histMsg.PartsJSON == "{}" || histMsg.PartsJSON == "null" {
-		return nil, nil
+		return nil, warnings, nil
 	}
 
 	role := histMsg.Role
@@ -500,7 +582,7 @@ func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Messa
 	if role == "user" {
 		var userParts []models.User_Part
 		if err := json.Unmarshal([]byte(histMsg.PartsJSON), &userParts); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal user parts: %w", err)
+			return nil, warnings, fmt.Errorf("failed to unmarshal user parts: %w", err)
 		}
 
 		// Check if this is a function response
@@ -512,24 +594,25 @@ func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Messa
 					Role:       "tool",
 					Content:    string(responseBytes),
 					ToolCallID: &toolCallID,
-				}, nil
+				}, warnings, nil
 			}
 		}
 
 		// Regular user message
-		content := o.buildContentFromUserParts(userParts)
+		content, contentWarnings := o.buildContentFromUserPartsWithWarnings(userParts, stripImages)
+		warnings = append(warnings, contentWarnings...)
 		if content == nil {
-			return nil, nil
+			return nil, warnings, nil
 		}
 		return &Message{
 			Role:    "user",
 			Content: content,
-		}, nil
+		}, warnings, nil
 
 	} else if role == "model" {
 		var modelParts []models.Model_Part
 		if err := json.Unmarshal([]byte(histMsg.PartsJSON), &modelParts); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal model parts: %w", err)
+			return nil, warnings, fmt.Errorf("failed to unmarshal model parts: %w", err)
 		}
 
 		msg := &Message{
@@ -554,6 +637,7 @@ func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Messa
 					},
 				})
 			}
+			// Note: Reasoning content is internal and not sent to OpenRouter
 		}
 
 		if textContent.Len() > 0 {
@@ -564,22 +648,45 @@ func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Messa
 		}
 
 		if msg.Content == nil && len(msg.ToolCalls) == 0 {
-			return nil, nil
+			return nil, warnings, nil
 		}
 
-		return msg, nil
+		return msg, warnings, nil
 	}
 
-	return nil, fmt.Errorf("unknown role: %s", role)
+	return nil, warnings, fmt.Errorf("unknown role: %s", role)
+}
+
+// convertHistoryMessage converts a stored message to OpenRouter Message format (legacy wrapper)
+func (o *OpenRouter_Model) convertHistoryMessage(histMsg stores.Message) (*Message, error) {
+	msg, _, err := o.convertHistoryMessageWithWarnings(histMsg, false)
+	return msg, err
+}
+
+// deduplicateWarnings removes duplicate warnings based on type and message
+func deduplicateWarnings(warnings []models.HistoryWarning) []models.HistoryWarning {
+	seen := make(map[string]bool)
+	result := []models.HistoryWarning{}
+
+	for _, w := range warnings {
+		key := w.Type + ":" + w.Message
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, w)
+		}
+	}
+
+	return result
 }
 
 // convertUserMessage converts a User_Message to OpenRouter Message format
-func (o *OpenRouter_Model) convertUserMessage(message models.User_Message) (*Message, error) {
+// If stripImages is true, image content will be skipped
+func (o *OpenRouter_Model) convertUserMessage(message models.User_Message, stripImages bool) (*Message, error) {
 	if len(message.Content.Parts) == 0 {
 		return nil, nil
 	}
 
-	content := o.buildContentFromUserParts(message.Content.Parts)
+	content, _ := o.buildContentFromUserPartsWithWarnings(message.Content.Parts, stripImages)
 	if content == nil {
 		return nil, nil
 	}
@@ -590,11 +697,13 @@ func (o *OpenRouter_Model) convertUserMessage(message models.User_Message) (*Mes
 	}, nil
 }
 
-// buildContentFromUserParts builds message content from user parts
-// Returns string for text-only, []ContentPart for multimodal
-func (o *OpenRouter_Model) buildContentFromUserParts(parts []models.User_Part) interface{} {
+// buildContentFromUserPartsWithWarnings builds message content from user parts
+// Returns content (string for text-only, []ContentPart for multimodal) and any warnings
+// If stripImages is true, all image content will be skipped (for non-vision models)
+func (o *OpenRouter_Model) buildContentFromUserPartsWithWarnings(parts []models.User_Part, stripImages bool) (interface{}, []models.HistoryWarning) {
 	var textParts []string
 	var contentParts []ContentPart
+	var warnings []models.HistoryWarning
 	hasMultimodal := false
 
 	for _, part := range parts {
@@ -608,48 +717,128 @@ func (o *OpenRouter_Model) buildContentFromUserParts(parts []models.User_Part) i
 
 		// Handle inline data (base64 images)
 		if part.InlineData != nil {
-			hasMultimodal = true
-			dataURL := fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data)
-			contentParts = append(contentParts, ContentPart{
-				Type: "image_url",
-				ImageURL: &ImageURL{
-					URL: dataURL,
-				},
-			})
+			// Skip images if model doesn't support vision
+			if stripImages {
+				continue
+			}
+			// Check if it's a supported image type
+			if isImageMimeType(part.InlineData.MimeType) {
+				hasMultimodal = true
+				dataURL := fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data)
+				contentParts = append(contentParts, ContentPart{
+					Type: "image_url",
+					ImageURL: &ImageURL{
+						URL: dataURL,
+					},
+				})
+			} else {
+				log.Printf("Warning: Skipping non-image InlineData (mime: %s)", part.InlineData.MimeType)
+				warnings = append(warnings, models.HistoryWarning{
+					Type:    "unsupported_content",
+					Message: "File type not supported",
+					Details: fmt.Sprintf("Only images are supported, skipping %s", part.InlineData.MimeType),
+				})
+			}
 		}
 
-		// Handle file data (URLs)
+		// Handle file data (URLs) - only send images, skip PDFs and other files
 		if part.FileData != nil {
-			hasMultimodal = true
-			contentParts = append(contentParts, ContentPart{
-				Type: "image_url",
-				ImageURL: &ImageURL{
-					URL: part.FileData.FileUrl,
-				},
-			})
+			// Skip images if model doesn't support vision
+			if stripImages && isImageMimeType(part.FileData.MimeType) {
+				continue
+			}
+			if part.FileData.FileUrl != "" {
+				// Check if it's an image type that OpenRouter/providers support
+				if isImageMimeType(part.FileData.MimeType) {
+					hasMultimodal = true
+					contentParts = append(contentParts, ContentPart{
+						Type: "image_url",
+						ImageURL: &ImageURL{
+							URL: part.FileData.FileUrl,
+						},
+					})
+				} else {
+					// Non-image file (PDF, etc.) - skip with warning
+					log.Printf("Warning: Skipping non-image file in history (mime: %s)", part.FileData.MimeType)
+					warnings = append(warnings, models.HistoryWarning{
+						Type:    "unsupported_content",
+						Message: "File type not supported by this model",
+						Details: fmt.Sprintf("Only images are supported, skipping %s file", part.FileData.MimeType),
+					})
+				}
+			} else if part.FileData.GoogleUri != nil && *part.FileData.GoogleUri != "" {
+				// File was uploaded to Gemini but we don't have a public URL
+				log.Printf("Warning: FileData has GoogleUri but no FileUrl, cannot use for OpenRouter")
+				warnings = append(warnings, models.HistoryWarning{
+					Type:    "unsupported_content",
+					Message: "File not available for this model",
+					Details: "Files uploaded to Gemini cannot be accessed by other models",
+				})
+			}
 		}
 
 		// Handle image data
 		if part.ImageData != nil {
-			hasMultimodal = true
-			contentParts = append(contentParts, ContentPart{
-				Type: "image_url",
-				ImageURL: &ImageURL{
-					URL: part.ImageData.FileUrl,
-				},
-			})
+			// Skip images if model doesn't support vision
+			if stripImages {
+				continue
+			}
+			if part.ImageData.FileUrl != "" {
+				// Check if it's an image type that OpenRouter/providers support
+				if isImageMimeType(part.ImageData.MimeType) {
+					hasMultimodal = true
+					contentParts = append(contentParts, ContentPart{
+						Type: "image_url",
+						ImageURL: &ImageURL{
+							URL: part.ImageData.FileUrl,
+						},
+					})
+				} else {
+					log.Printf("Warning: Skipping non-image ImageData (mime: %s)", part.ImageData.MimeType)
+					warnings = append(warnings, models.HistoryWarning{
+						Type:    "unsupported_content",
+						Message: "File type not supported",
+						Details: fmt.Sprintf("Only images are supported, skipping %s", part.ImageData.MimeType),
+					})
+				}
+			} else {
+				log.Printf("Warning: ImageData has no FileUrl")
+				warnings = append(warnings, models.HistoryWarning{
+					Type:    "unsupported_content",
+					Message: "Image not available",
+					Details: "Image reference is missing URL",
+				})
+			}
 		}
 	}
 
 	if len(contentParts) == 0 {
-		return nil
+		return nil, warnings
 	}
 
 	// Return simple string if text-only
 	if !hasMultimodal && len(textParts) > 0 {
-		return strings.Join(textParts, "\n")
+		return strings.Join(textParts, "\n"), warnings
 	}
 
 	// Return content parts for multimodal
-	return contentParts
+	return contentParts, warnings
+}
+
+// isImageMimeType checks if the mime type is a supported image format
+// Most providers support jpeg, png, webp, and gif
+func isImageMimeType(mimeType string) bool {
+	switch mimeType {
+	case "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif":
+		return true
+	default:
+		return false
+	}
+}
+
+// buildContentFromUserParts builds message content from user parts (legacy wrapper)
+// Returns string for text-only, []ContentPart for multimodal
+func (o *OpenRouter_Model) buildContentFromUserParts(parts []models.User_Part) interface{} {
+	content, _ := o.buildContentFromUserPartsWithWarnings(parts, false)
+	return content
 }

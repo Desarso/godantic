@@ -153,7 +153,12 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter) (stri
 			// Successfully parsed JSON from stdout
 			if !result.Success {
 				// Execution failed, return the error message from JSON
-				return "", fmt.Errorf("%s", result.Error)
+				// Include any partial output that was captured
+				errMsg := result.Error
+				if result.Output != "" {
+					errMsg = fmt.Sprintf("%s\n\nPartial output:\n%s", result.Error, result.Output)
+				}
+				return "", fmt.Errorf("%s", errMsg)
 			}
 			// Execution succeeded
 			output := result.Output

@@ -108,14 +108,45 @@ type OpenRouterError struct {
 	Code    string      `json:"code,omitempty"`
 }
 
+// SanitizedParameters ensures the parameters object has proper structure for strict APIs like xAI/Grok
+// Some APIs require properties to be an object (not null) and required to be an array (not null)
+type SanitizedParameters struct {
+	Type       string                 `json:"type"`
+	Properties map[string]interface{} `json:"properties"`
+	Required   []string               `json:"required"`
+}
+
 // Helper function to convert FunctionDeclaration to OpenRouter Tool format
 func ConvertToOpenRouterTool(fd models.FunctionDeclaration) Tool {
+	// Sanitize parameters to ensure properties and required are never null
+	// Some providers like xAI/Grok strictly validate the schema
+	sanitizedParams := SanitizedParameters{
+		Type:       fd.Parameters.Type,
+		Properties: fd.Parameters.Properties,
+		Required:   fd.Parameters.Required,
+	}
+
+	// Ensure properties is an empty object instead of null
+	if sanitizedParams.Properties == nil {
+		sanitizedParams.Properties = make(map[string]interface{})
+	}
+
+	// Ensure required is an empty array instead of null
+	if sanitizedParams.Required == nil {
+		sanitizedParams.Required = []string{}
+	}
+
+	// Default type to "object" if not set
+	if sanitizedParams.Type == "" {
+		sanitizedParams.Type = "object"
+	}
+
 	return Tool{
 		Type: "function",
 		Function: ToolFunction{
 			Name:        fd.Name,
 			Description: fd.Description,
-			Parameters:  fd.Parameters,
+			Parameters:  sanitizedParams,
 		},
 	}
 }
