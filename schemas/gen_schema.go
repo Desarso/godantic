@@ -218,7 +218,8 @@ func main() {
 		}
 
 	}
-	sort.Strings(parameterSchema.Required) // Keep required fields sorted for deterministic output
+	// Note: We preserve parameter order from the function signature (don't sort)
+	// The order in Required must match the Go function's parameter order for ExecuteTool
 
 	// --- Assemble the final ToolFunctionSchema ---
 	finalSchema := ToolFunctionSchema{

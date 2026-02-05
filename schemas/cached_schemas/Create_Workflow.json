@@ -1,13 +1,13 @@
 {
   "name": "Create_Workflow",
-  "description": "Create_Workflow creates a new workflow with TypeScript code that can be run later\nReturns the workflow ID that can be used to run the workflow\nThe workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills\nUnlike Execute_TypeScript, workflows have no timeout and run in the background",
+  "description": "Create_Workflow creates a new workflow with TypeScript code that can be run later\nReturns the workflow ID and a URL that can be used to view the workflow\nThe workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills\nUnlike Execute_TypeScript, workflows have no timeout and run in the background\nIMPORTANT: Always present the returned URL to the user as a clickable markdown link, e.g. [View Workflow](url)",
   "parameters": {
     "type": "object",
     "properties": {
-      "name": {
+      "code": {
         "type": "string"
       },
-      "code": {
+      "name": {
         "type": "string"
       }
     },

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 
 	models "github.com/Desarso/godantic/models"
@@ -17,6 +18,67 @@ import (
 	"github.com/Desarso/godantic/models/openrouter"
 	"github.com/Desarso/godantic/stores"
 )
+
+// coerceArgToType converts an argument value to the expected reflect.Type
+// Supports string -> int, string -> float64, string -> bool, and direct type matches
+func coerceArgToType(argValue interface{}, expectedType reflect.Type) (reflect.Value, error) {
+	// If already the correct type, return directly
+	argReflect := reflect.ValueOf(argValue)
+	if argReflect.Type().ConvertibleTo(expectedType) && argReflect.Type() == expectedType {
+		return argReflect, nil
+	}
+
+	// Handle string input that needs conversion
+	if strVal, ok := argValue.(string); ok {
+		switch expectedType.Kind() {
+		case reflect.String:
+			return reflect.ValueOf(strVal), nil
+		case reflect.Int:
+			intVal, err := strconv.Atoi(strVal)
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("cannot convert '%s' to int: %v", strVal, err)
+			}
+			return reflect.ValueOf(intVal), nil
+		case reflect.Int64:
+			intVal, err := strconv.ParseInt(strVal, 10, 64)
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("cannot convert '%s' to int64: %v", strVal, err)
+			}
+			return reflect.ValueOf(intVal), nil
+		case reflect.Float64:
+			floatVal, err := strconv.ParseFloat(strVal, 64)
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("cannot convert '%s' to float64: %v", strVal, err)
+			}
+			return reflect.ValueOf(floatVal), nil
+		case reflect.Bool:
+			boolVal, err := strconv.ParseBool(strVal)
+			if err != nil {
+				return reflect.Value{}, fmt.Errorf("cannot convert '%s' to bool: %v", strVal, err)
+			}
+			return reflect.ValueOf(boolVal), nil
+		}
+	}
+
+	// Handle numeric types from JSON (float64) that need conversion to int
+	if floatVal, ok := argValue.(float64); ok {
+		switch expectedType.Kind() {
+		case reflect.Int:
+			return reflect.ValueOf(int(floatVal)), nil
+		case reflect.Int64:
+			return reflect.ValueOf(int64(floatVal)), nil
+		case reflect.Float64:
+			return reflect.ValueOf(floatVal), nil
+		}
+	}
+
+	// Try direct conversion if types are convertible
+	if argReflect.Type().ConvertibleTo(expectedType) {
+		return argReflect.Convert(expectedType), nil
+	}
+
+	return reflect.Value{}, fmt.Errorf("cannot convert %T to %s", argValue, expectedType.Kind())
+}
 
 //go:embed schemas/cached_schemas/*.json
 var schemaFiles embed.FS
@@ -286,88 +348,71 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 			if numIn == 0 {
 				// No parameters: func() (string, error)
 				argsToPass = []reflect.Value{}
-			} else {
-				// Check if all parameters are strings
-				allStrings := true
-				for i := 0; i < numIn; i++ {
-					if funcType.In(i).Kind() != reflect.String {
-						allStrings = false
+			} else if numIn == 1 {
+				// Single parameter function
+				expectedType := funcType.In(0)
+				var argValue interface{}
+				if len(functionCallArgs) == 0 {
+					argValue = "" // Allow empty args for single-param functions
+				} else if len(functionCallArgs) == 1 {
+					for _, val := range functionCallArgs {
+						argValue = val
 						break
 					}
-				}
-
-				if !allStrings {
-					toolExecErr = fmt.Errorf("internal error: tool '%s' has incompatible input signature (all params must be string)", functionName)
+				} else {
+					toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
 					break
 				}
 
-				if numIn == 1 {
-					// Single string parameter: func(string) (string, error)
-					var stringArg string
-					if len(functionCallArgs) == 0 {
-						stringArg = "" // Allow empty args for single-param functions
-					} else if len(functionCallArgs) == 1 {
-						var argName string
-						var argValueInterface interface{}
-						for key, val := range functionCallArgs {
-							argName = key
-							argValueInterface = val
-							break
-						}
-						var ok bool
-						stringArg, ok = argValueInterface.(string)
-						if !ok {
-							toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, argName, argValueInterface)
-							break
-						}
-					} else {
-						toolExecErr = fmt.Errorf("tool '%s' expects 1 argument from model, got %d args: %v", functionName, len(functionCallArgs), functionCallArgs)
-						break
+				convertedVal, err := coerceArgToType(argValue, expectedType)
+				if err != nil {
+					toolExecErr = fmt.Errorf("invalid argument for '%s': %v", functionName, err)
+					break
+				}
+				argsToPass = []reflect.Value{convertedVal}
+			} else {
+				// Multiple parameters: func(p1, p2, ...) (string, error)
+				argsToPass = make([]reflect.Value, numIn)
+
+				// Get parameter names from schema (tool is in scope from the outer loop)
+				schema := tool
+
+				// Extract parameter order from schema's "required" field (maintains order)
+				paramOrder := schema.Parameters.Required
+				if len(paramOrder) != numIn {
+					// Fallback: try to get from properties keys (though order may not be guaranteed)
+					paramOrder = make([]string, 0, len(schema.Parameters.Properties))
+					for key := range schema.Parameters.Properties {
+						paramOrder = append(paramOrder, key)
 					}
-					argsToPass = []reflect.Value{reflect.ValueOf(stringArg)}
-				} else {
-					// Multiple string parameters: func(s1, s2, ...) (string, error)
-					// We need to get parameter names from the schema to match them correctly
-					argsToPass = make([]reflect.Value, numIn)
+				}
 
-					// Get parameter names from schema (tool is in scope from the outer loop)
-					schema := tool
+				if len(paramOrder) != numIn {
+					toolExecErr = fmt.Errorf("internal error: tool '%s' parameter count mismatch (schema: %d, func: %d)", functionName, len(paramOrder), numIn)
+					break
+				}
 
-					// Extract parameter order from schema's "required" field (maintains order)
-					paramOrder := schema.Parameters.Required
-					if len(paramOrder) != numIn {
-						// Fallback: try to get from properties keys (though order may not be guaranteed)
-						paramOrder = make([]string, 0, len(schema.Parameters.Properties))
-						for key := range schema.Parameters.Properties {
-							paramOrder = append(paramOrder, key)
-						}
-					}
-
-					if len(paramOrder) != numIn {
-						toolExecErr = fmt.Errorf("internal error: tool '%s' parameter count mismatch (schema: %d, func: %d)", functionName, len(paramOrder), numIn)
+				// Map args by parameter name in order with type coercion
+				validArgs := true
+				for i, paramName := range paramOrder {
+					argValue, exists := functionCallArgs[paramName]
+					if !exists {
+						toolExecErr = fmt.Errorf("missing required argument '%s' for tool '%s'", paramName, functionName)
+						validArgs = false
 						break
 					}
 
-					// Map args by parameter name in order
-					validArgs := true
-					for i, paramName := range paramOrder {
-						argValue, exists := functionCallArgs[paramName]
-						if !exists {
-							toolExecErr = fmt.Errorf("missing required argument '%s' for tool '%s'", paramName, functionName)
-							validArgs = false
-							break
-						}
-						stringVal, ok := argValue.(string)
-						if !ok {
-							toolExecErr = fmt.Errorf("invalid argument type for '%s': expected string for arg '%s', got %T", functionName, paramName, argValue)
-							validArgs = false
-							break
-						}
-						argsToPass[i] = reflect.ValueOf(stringVal)
-					}
-					if !validArgs {
+					expectedType := funcType.In(i)
+					convertedVal, err := coerceArgToType(argValue, expectedType)
+					if err != nil {
+						toolExecErr = fmt.Errorf("invalid argument for '%s' param '%s': %v", functionName, paramName, err)
+						validArgs = false
 						break
 					}
+					argsToPass[i] = convertedVal
+				}
+				if !validArgs {
+					break
 				}
 			}
 

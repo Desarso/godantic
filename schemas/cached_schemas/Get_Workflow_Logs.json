@@ -12,8 +12,8 @@
       }
     },
     "required": [
-      "tail_lines",
-      "workflow_id"
+      "workflow_id",
+      "tail_lines"
     ]
   }
 }

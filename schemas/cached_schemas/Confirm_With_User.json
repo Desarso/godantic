@@ -1,6 +1,6 @@
 {
   "name": "Confirm_With_User",
-  "description": "Confirm_With_User shows a confirmation dialog to the user before performing sensitive actions.\nReturns whether the user confirmed (true) or declined (false).\nUse this tool before performing actions that modify data, send emails, or make irreversible changes.",
+  "description": "Confirm_With_User shows a confirmation dialog to the user before performing sensitive actions.\nReturns whether the user confirmed (true) or declined (false).\nUse this tool before performing actions that modify data, send emails, or make irreversible changes.\nDescription: Ask the user to confirm an action before proceeding. Returns true if confirmed, false if declined.",
   "parameters": {
     "type": "object",
     "properties": {

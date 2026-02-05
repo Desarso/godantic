@@ -16,8 +16,8 @@
     },
     "required": [
       "name",
-      "new_text",
-      "old_text"
+      "old_text",
+      "new_text"
     ]
   }
 }

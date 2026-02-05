@@ -4,13 +4,13 @@
   "parameters": {
     "type": "object",
     "properties": {
-      "workflow_id": {
-        "type": "string"
-      },
       "schedule_type": {
         "type": "string"
       },
       "schedule_value": {
+        "type": "string"
+      },
+      "workflow_id": {
         "type": "string"
       }
     },
