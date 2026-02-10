@@ -25,11 +25,8 @@ func Read_Skill_File(name string) (string, error) {
 	// Sanitize: prevent directory traversal
 	name = filepath.Base(name)
 
-	// Check custom skills first (these override defaults), then default skills
-	searchDirs := []string{
-		filepath.Join("data", "custom_skills"), // Custom/persisted skills (priority)
-		filepath.Join("prompts", "skills"),     // Default skills from repo
-	}
+	// Use the same directories as List_Skill_Files (includes client config dir)
+	searchDirs := GetSkillsDirs()
 
 	for _, dir := range searchDirs {
 		skillPath := filepath.Join(dir, name)

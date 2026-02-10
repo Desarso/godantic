@@ -56,12 +56,9 @@ func Edit_Skill_File(name string, old_text string, new_text string) (string, err
 	return fmt.Sprintf("Successfully edited %s (saved to custom skills)", name), nil
 }
 
-// readSkillContent reads skill content, checking custom skills first then default
+// readSkillContent reads skill content, checking all skill directories
 func readSkillContent(name string) ([]byte, error) {
-	searchDirs := []string{
-		customSkillsDir,                    // Custom/persisted skills (priority)
-		filepath.Join("prompts", "skills"), // Default skills from repo
-	}
+	searchDirs := GetSkillsDirs()
 
 	for _, dir := range searchDirs {
 		skillPath := filepath.Join(dir, name)
