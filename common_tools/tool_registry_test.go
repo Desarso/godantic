@@ -47,18 +47,53 @@ func TestWebFetchToolDeclaration(t *testing.T) {
 
 func TestDefaultTools(t *testing.T) {
 	tools := DefaultTools()
-	if len(tools) != 2 {
-		t.Errorf("expected 2 default tools, got %d", len(tools))
+	if len(tools) != 7 {
+		t.Errorf("expected 7 default tools, got %d", len(tools))
 	}
 
 	names := map[string]bool{}
 	for _, tool := range tools {
 		names[tool.Name] = true
 	}
-	if !names["web_search"] {
-		t.Error("expected web_search tool")
+	expected := []string{"web_search", "web_fetch", "read_file", "write_file", "edit_file", "list_directory", "shell_exec"}
+	for _, name := range expected {
+		if !names[name] {
+			t.Errorf("expected %s tool", name)
+		}
 	}
-	if !names["web_fetch"] {
-		t.Error("expected web_fetch tool")
+}
+
+func TestReadFileTool(t *testing.T) {
+	tool := ReadFileTool()
+	if tool.Name != "read_file" || tool.Callable == nil {
+		t.Error("invalid read_file tool")
+	}
+}
+
+func TestWriteFileTool(t *testing.T) {
+	tool := WriteFileTool()
+	if tool.Name != "write_file" || tool.Callable == nil {
+		t.Error("invalid write_file tool")
+	}
+}
+
+func TestEditFileTool(t *testing.T) {
+	tool := EditFileTool()
+	if tool.Name != "edit_file" || tool.Callable == nil {
+		t.Error("invalid edit_file tool")
+	}
+}
+
+func TestListDirectoryTool(t *testing.T) {
+	tool := ListDirectoryTool()
+	if tool.Name != "list_directory" || tool.Callable == nil {
+		t.Error("invalid list_directory tool")
+	}
+}
+
+func TestShellExecTool(t *testing.T) {
+	tool := ShellExecTool()
+	if tool.Name != "shell_exec" || tool.Callable == nil {
+		t.Error("invalid shell_exec tool")
 	}
 }

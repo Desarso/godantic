@@ -51,10 +51,142 @@ func WebFetchTool() models.FunctionDeclaration {
 	}
 }
 
-// DefaultTools returns the standard set of web tools for FastClaw.
+// ReadFileTool returns a FunctionDeclaration for reading files.
+func ReadFileTool() models.FunctionDeclaration {
+	return models.FunctionDeclaration{
+		Name:        "read_file",
+		Description: "Read the contents of a file. Supports offset (1-indexed line number) and limit for large files.",
+		Parameters: models.Parameters{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"file_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to the file to read",
+				},
+				"offset": map[string]interface{}{
+					"type":        "integer",
+					"description": "Line number to start reading from (1-indexed)",
+				},
+				"limit": map[string]interface{}{
+					"type":        "integer",
+					"description": "Maximum number of lines to read",
+				},
+			},
+			Required: []string{"file_path"},
+		},
+		Callable: ReadFile,
+	}
+}
+
+// WriteFileTool returns a FunctionDeclaration for writing files.
+func WriteFileTool() models.FunctionDeclaration {
+	return models.FunctionDeclaration{
+		Name:        "write_file",
+		Description: "Write content to a file. Creates the file and parent directories if they don't exist.",
+		Parameters: models.Parameters{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"file_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to the file to write",
+				},
+				"content": map[string]interface{}{
+					"type":        "string",
+					"description": "Content to write to the file",
+				},
+			},
+			Required: []string{"file_path", "content"},
+		},
+		Callable: WriteFile,
+	}
+}
+
+// EditFileTool returns a FunctionDeclaration for editing files with find/replace.
+func EditFileTool() models.FunctionDeclaration {
+	return models.FunctionDeclaration{
+		Name:        "edit_file",
+		Description: "Edit a file by replacing exact text. The old_text must match exactly once in the file.",
+		Parameters: models.Parameters{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"file_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to the file to edit",
+				},
+				"old_text": map[string]interface{}{
+					"type":        "string",
+					"description": "Exact text to find and replace",
+				},
+				"new_text": map[string]interface{}{
+					"type":        "string",
+					"description": "New text to replace the old text with",
+				},
+			},
+			Required: []string{"file_path", "old_text", "new_text"},
+		},
+		Callable: EditFile,
+	}
+}
+
+// ListDirectoryTool returns a FunctionDeclaration for listing directory contents.
+func ListDirectoryTool() models.FunctionDeclaration {
+	return models.FunctionDeclaration{
+		Name:        "list_directory",
+		Description: "List files and directories in a path.",
+		Parameters: models.Parameters{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"dir_path": map[string]interface{}{
+					"type":        "string",
+					"description": "Path to the directory to list (default: current directory)",
+				},
+			},
+			Required: []string{},
+		},
+		Callable: ListDirectory,
+	}
+}
+
+// ShellExecTool returns a FunctionDeclaration for shell command execution.
+func ShellExecTool() models.FunctionDeclaration {
+	return models.FunctionDeclaration{
+		Name:        "shell_exec",
+		Description: "Execute a shell command. Supports timeout, working directory, and environment variables. Secret values are automatically scrubbed from output.",
+		Parameters: models.Parameters{
+			Type: "object",
+			Properties: map[string]interface{}{
+				"command": map[string]interface{}{
+					"type":        "string",
+					"description": "Shell command to execute",
+				},
+				"workdir": map[string]interface{}{
+					"type":        "string",
+					"description": "Working directory for the command",
+				},
+				"timeout": map[string]interface{}{
+					"type":        "integer",
+					"description": "Timeout in seconds (default: 30)",
+				},
+				"env": map[string]interface{}{
+					"type":        "string",
+					"description": "Comma-separated environment variables (KEY=VAL,KEY2=VAL2)",
+				},
+			},
+			Required: []string{"command"},
+		},
+		Callable: ShellExec,
+	}
+}
+
+// DefaultTools returns the standard set of tools for FastClaw.
 func DefaultTools() []models.FunctionDeclaration {
 	return []models.FunctionDeclaration{
 		WebSearchTool(),
 		WebFetchTool(),
+		ReadFileTool(),
+		WriteFileTool(),
+		EditFileTool(),
+		ListDirectoryTool(),
+		ShellExecTool(),
 	}
 }
