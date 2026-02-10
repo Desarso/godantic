@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	models "github.com/Desarso/godantic/models"
+	anthropicModel "github.com/Desarso/godantic/models/anthropic"
 	"github.com/Desarso/godantic/models/cerebras"
 	"github.com/Desarso/godantic/models/gemini"
 	"github.com/Desarso/godantic/models/groq"
@@ -134,6 +135,13 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 			MaxTokens:    config.MaxTokens,
 			SystemPrompt: config.SystemPrompt,
 		}
+	case ProviderAnthropic:
+		model = &anthropicModel.Anthropic_Model{
+			Model:        config.ModelName,
+			Temperature:  config.Temperature,
+			MaxTokens:    config.MaxTokens,
+			SystemPrompt: config.SystemPrompt,
+		}
 	case ProviderGemini:
 		fallthrough
 	default:
@@ -150,6 +158,29 @@ func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclarati
 		Model:  model,
 		Tools:  tools,
 		Memory: mem,
+	}
+}
+
+// NewAnthropicModel creates a new Anthropic model instance
+func NewAnthropicModel(modelName string) *anthropicModel.Anthropic_Model {
+	if modelName == "" {
+		modelName = "claude-sonnet-4-20250514"
+	}
+	return &anthropicModel.Anthropic_Model{
+		Model: modelName,
+	}
+}
+
+// NewAnthropicModelWithOptions creates a new Anthropic model with full configuration
+func NewAnthropicModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string) *anthropicModel.Anthropic_Model {
+	if modelName == "" {
+		modelName = "claude-sonnet-4-20250514"
+	}
+	return &anthropicModel.Anthropic_Model{
+		Model:        modelName,
+		Temperature:  temperature,
+		MaxTokens:    maxTokens,
+		SystemPrompt: systemPrompt,
 	}
 }
 

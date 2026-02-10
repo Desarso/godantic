@@ -12,6 +12,7 @@ const (
 	ProviderOpenRouter ModelProvider = "openrouter"
 	ProviderGroq       ModelProvider = "groq"
 	ProviderCerebras   ModelProvider = "cerebras"
+	ProviderAnthropic  ModelProvider = "anthropic"
 )
 
 // WSConfig holds configuration for WebSocket controllers
@@ -196,6 +197,34 @@ func NewCerebrasConfig(model string) *WSConfig {
 // WithCerebras sets Cerebras as the provider with the specified model
 func (c *WSConfig) WithCerebras(model string) *WSConfig {
 	c.Provider = ProviderCerebras
+	if model != "" {
+		c.ModelName = model
+	}
+	return c
+}
+
+// NewAnthropicConfig creates a new configuration with Anthropic as the provider
+func NewAnthropicConfig(model string) *WSConfig {
+	defaultStore, err := stores.NewSQLiteStoreDefault()
+	if err != nil {
+		panic("Failed to create default SQLite store: " + err.Error())
+	}
+
+	if model == "" {
+		model = "claude-sonnet-4-20250514"
+	}
+
+	return &WSConfig{
+		ModelName: model,
+		Tools:     []interface{}{},
+		Store:     defaultStore,
+		Provider:  ProviderAnthropic,
+	}
+}
+
+// WithAnthropic sets Anthropic as the provider with the specified model
+func (c *WSConfig) WithAnthropic(model string) *WSConfig {
+	c.Provider = ProviderAnthropic
 	if model != "" {
 		c.ModelName = model
 	}
