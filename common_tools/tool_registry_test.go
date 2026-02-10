@@ -47,8 +47,8 @@ func TestWebFetchToolDeclaration(t *testing.T) {
 
 func TestDefaultTools(t *testing.T) {
 	tools := DefaultTools()
-	if len(tools) != 7 {
-		t.Errorf("expected 7 default tools, got %d", len(tools))
+	if len(tools) != 8 {
+		t.Errorf("expected 8 default tools, got %d", len(tools))
 	}
 
 	names := map[string]bool{}

@@ -188,5 +188,6 @@ func DefaultTools() []models.FunctionDeclaration {
 		EditFileTool(),
 		ListDirectoryTool(),
 		ShellExecTool(),
+		ImageAnalysisTool(),
 	}
 }
