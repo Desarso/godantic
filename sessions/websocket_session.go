@@ -746,8 +746,11 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 	var result string
 	var err error
 
-	// Special handling for Execute_TypeScript to enable detailed internal tracing
-	if fc.Name == "Execute_TypeScript" {
+	// Special handling for Consult_Model — route through the session's consultant engine
+	if fc.Name == "Consult_Model" {
+		result, err = as.executeConsultModel(fc)
+	} else if fc.Name == "Execute_TypeScript" {
+		// Special handling for Execute_TypeScript to enable detailed internal tracing
 		result, err = as.executeTypeScriptWithTracing(fc)
 	} else if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
 		// Check FrontendToolExecutor if it exists and this is a frontend tool
@@ -786,6 +789,52 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 	}
 
 	return result, err
+}
+
+// executeConsultModel handles the Consult_Model tool by routing to the session's consultant engine.
+func (as *AgentSession) executeConsultModel(fc functionCallInfo) (string, error) {
+	if as.ConsultantEngine == nil {
+		return `{"error": "Consultant is not configured for this session. Try solving the problem yourself or ask the user for help."}`, nil
+	}
+
+	// Extract arguments
+	mode, _ := fc.Args["mode"].(string)
+	goal, _ := fc.Args["goal"].(string)
+	whatTried, _ := fc.Args["what_tried"].(string)
+	contextInfo, _ := fc.Args["context"].(string)
+	specificAsk, _ := fc.Args["specific_ask"].(string)
+
+	// Notify the user that a consultation is happening
+	_ = as.Writer.WriteResponse(map[string]interface{}{
+		"type":    "execution_trace",
+		"tool":    "consultant",
+		"status":  "start",
+		"label":   fmt.Sprintf("Consulting %s model (%s mode)...", "premium", mode),
+		"traceId": fmt.Sprintf("consult_%d", time.Now().UnixMilli()),
+	})
+
+	// Handle takeover mode separately — it needs to run a full agent loop
+	if mode == "takeover" {
+		if as.ConsultantTakeoverFunc == nil {
+			return `{"error": "Takeover mode is not available in this session. Use advisor mode instead."}`, nil
+		}
+		// Run takeover with the current context
+		ctx := context.Background() // Takeover gets its own context
+		result, err := as.ConsultantTakeoverFunc(ctx, goal, whatTried, contextInfo, specificAsk)
+		if err != nil {
+			return fmt.Sprintf(`{"error": "Takeover consultation failed: %s"}`, err.Error()), nil
+		}
+		return result, nil
+	}
+
+	// Advisor mode — delegate to the consultant engine
+	result, err := as.ConsultantEngine.Consult(mode, goal, whatTried, contextInfo, specificAsk)
+	if err != nil {
+		// Return error as tool result (not Go error) so the model sees it and can react
+		return fmt.Sprintf(`{"error": %q}`, err.Error()), nil
+	}
+
+	return result, nil
 }
 
 // emitToolTrace sends a trace event over WebSocket for real-time visualization

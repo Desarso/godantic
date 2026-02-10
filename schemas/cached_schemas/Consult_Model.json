@@ -1,0 +1,36 @@
+{
+  "name": "Consult_Model",
+  "description": "Consult a more capable AI model when you are stuck or the task exceeds your abilities. You MUST first try to solve the problem yourself and describe what you attempted. Two modes: 'advisor' returns text guidance for you to follow, 'takeover' lets the consultant execute tools and solve it directly (streaming results to the user). Use sparingly - limited to 2 consults per session.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": ["advisor", "takeover"],
+        "description": "advisor: get text advice and continue yourself. takeover: consultant runs tools to solve it directly."
+      },
+      "goal": {
+        "type": "string",
+        "description": "What you are trying to accomplish (1-2 sentences)"
+      },
+      "what_tried": {
+        "type": "string",
+        "description": "What approaches you already tried and why they failed"
+      },
+      "context": {
+        "type": "string",
+        "description": "Relevant context: error messages, tool outputs, constraints"
+      },
+      "specific_ask": {
+        "type": "string",
+        "description": "Your specific question or request for the consultant"
+      }
+    },
+    "required": [
+      "mode",
+      "goal",
+      "what_tried",
+      "specific_ask"
+    ]
+  }
+}

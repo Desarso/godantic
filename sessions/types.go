@@ -22,6 +22,17 @@ type MemoryManager interface {
 	RetrieveMemories(queryText string, limit int) ([]string, error)
 }
 
+// ConsultantEngine interface for the AI model consultation system.
+// Implement this interface and set it on AgentSession.ConsultantEngine to enable
+// the Consult_Model tool. Advisor mode is handled directly; takeover mode requires
+// the session to run a separate agent loop.
+type ConsultantEngine interface {
+	// Consult executes an advisor-mode consultation (single LLM call, returns text).
+	Consult(mode, goal, whatTried, contextInfo, specificAsk string) (string, error)
+	// ConsultsRemaining returns how many consults are left this session.
+	ConsultsRemaining() int
+}
+
 // FlowLogger interface for logging message flow events
 // Implement this interface and set it on AgentSession.FlowLogger to receive flow events
 type FlowLogger interface {
@@ -267,6 +278,12 @@ type AgentSession struct {
 	ToolExecutor         ToolExecutorFunc     // Optional: custom tool executor function
 	Memory               MemoryManager        // Optional: for memory storage and retrieval
 	FlowLogger           FlowLogger           // Optional: for logging message flow events
+	ConsultantEngine     ConsultantEngine     // Optional: for AI model consultation (Consult_Model tool)
+
+	// ConsultantTakeoverFunc is called for takeover-mode consultations.
+	// The session layer sets this to a closure that has access to buildAgent, tools, etc.
+	// Signature: func(ctx context.Context, goal, whatTried, contextInfo, specificAsk string) (string, error)
+	ConsultantTakeoverFunc func(ctx context.Context, goal, whatTried, contextInfo, specificAsk string) (string, error)
 
 	// TTS (optional): when enabled, text deltas are forwarded to ElevenLabs and audio chunks are streamed to the client.
 	ttsClient    *eleven_tts.Client
