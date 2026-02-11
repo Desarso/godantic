@@ -1,0 +1,13 @@
+{
+  "name": "EditFile",
+  "description": "Edit a file by replacing exact text. The oldText must match exactly.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "filePath": {"type": "string", "description": "Path to the file to edit"},
+      "oldText": {"type": "string", "description": "Exact text to find and replace"},
+      "newText": {"type": "string", "description": "New text to replace the old text with"}
+    },
+    "required": ["filePath", "oldText", "newText"]
+  }
+}

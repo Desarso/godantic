@@ -1,0 +1,13 @@
+{
+  "name": "ReadFile",
+  "description": "Read the contents of a file. Supports offset and limit for large files.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "filePath": {"type": "string", "description": "Path to the file to read"},
+      "offset": {"type": "integer", "description": "Line number to start reading from (0-indexed)"},
+      "limit": {"type": "integer", "description": "Maximum number of lines to read (0 = all)"}
+    },
+    "required": ["filePath"]
+  }
+}

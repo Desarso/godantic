@@ -1,0 +1,14 @@
+{
+  "name": "AnalyzeImage",
+  "description": "Analyze an image using a vision model. Provide either a URL or base64 data.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "imageURL": {"type": "string", "description": "URL of the image to analyze"},
+      "base64Data": {"type": "string", "description": "Base64-encoded image data"},
+      "mediaType": {"type": "string", "description": "MIME type of the image (e.g., image/png)"},
+      "prompt": {"type": "string", "description": "What to analyze about the image"}
+    },
+    "required": ["prompt"]
+  }
+}

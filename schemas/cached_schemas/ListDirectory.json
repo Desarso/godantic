@@ -1,0 +1,11 @@
+{
+  "name": "ListDirectory",
+  "description": "List the contents of a directory.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "dirPath": {"type": "string", "description": "Path to the directory to list"}
+    },
+    "required": ["dirPath"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Web_Fetch",
+  "description": "Fetch and extract readable content from a URL. Returns markdown or plain text extracted from HTML pages. Use for reading web pages, API responses, documentation.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "url": {"type": "string", "description": "URL to fetch"},
+      "extractMode": {"type": "string", "description": "Extraction mode: 'markdown' (default) or 'text'"},
+      "maxChars": {"type": "integer", "description": "Maximum characters to return (0 = no limit)"}
+    },
+    "required": ["url"]
+  }
+}

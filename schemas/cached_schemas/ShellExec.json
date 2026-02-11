@@ -1,0 +1,14 @@
+{
+  "name": "ShellExec",
+  "description": "Execute a shell command and return stdout/stderr. Use for system operations, git, builds, tests, file manipulation.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "command": {"type": "string", "description": "Shell command to execute"},
+      "workdir": {"type": "string", "description": "Working directory (optional)"},
+      "timeout": {"type": "integer", "description": "Timeout in seconds (default 30)"},
+      "env": {"type": "string", "description": "Additional environment variables as KEY=VALUE pairs separated by newlines"}
+    },
+    "required": ["command"]
+  }
+}
