@@ -10,10 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/desarso/NCA_Assistant/config"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 )
 
+//go:generate ../../gen_schema -func=Edit_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Create_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Run_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Get_Workflow_Status -file=workflows.go -out=../schemas/cached_schemas
@@ -226,6 +228,78 @@ func getWorkflowDir(workflowID string) string {
 	return filepath.Join(workflowsDir, workflowID)
 }
 
+// Edit_Workflow updates the code and/or name of an existing workflow
+// Use this to fix bugs, add features, or rename a workflow without deleting and recreating it
+// The workflow must not be currently running
+func Edit_Workflow(workflow_id string, code string, name string) (string, error) {
+	if workflow_id == "" {
+		return "", fmt.Errorf("workflow_id cannot be empty")
+	}
+
+	workflowDir := getWorkflowDir(workflow_id)
+	if _, err := os.Stat(workflowDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("workflow '%s' not found", workflow_id)
+	}
+
+	// Check workflow is not running
+	statusPath := filepath.Join(workflowDir, "status.json")
+	statusData, err := os.ReadFile(statusPath)
+	if err == nil {
+		var status WorkflowStatus
+		if json.Unmarshal(statusData, &status) == nil && status.Status == "running" {
+			return "", fmt.Errorf("cannot edit workflow '%s' while it is running. Stop it first with Stop_Workflow", workflow_id)
+		}
+	}
+
+	if code == "" && name == "" {
+		return "", fmt.Errorf("at least one of 'code' or 'name' must be provided")
+	}
+
+	var changes []string
+
+	// Update code if provided
+	if code != "" {
+		codePath := filepath.Join(workflowDir, "code.ts")
+		if err := os.WriteFile(codePath, []byte(code), 0644); err != nil {
+			return "", fmt.Errorf("failed to update workflow code: %v", err)
+		}
+		changes = append(changes, "code")
+	}
+
+	// Update name if provided
+	if name != "" {
+		metadataPath := filepath.Join(workflowDir, "metadata.json")
+		metadataData, err := os.ReadFile(metadataPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read workflow metadata: %v", err)
+		}
+		var metadata map[string]string
+		if err := json.Unmarshal(metadataData, &metadata); err != nil {
+			return "", fmt.Errorf("failed to parse workflow metadata: %v", err)
+		}
+		metadata["name"] = name
+		metadataBytes, _ := json.MarshalIndent(metadata, "", "  ")
+		if err := os.WriteFile(metadataPath, metadataBytes, 0644); err != nil {
+			return "", fmt.Errorf("failed to update workflow metadata: %v", err)
+		}
+		changes = append(changes, "name")
+	}
+
+	// Reset status to pending since code may have changed
+	if code != "" {
+		status := WorkflowStatus{
+			ID:     workflow_id,
+			Status: "pending",
+		}
+		statusBytes, _ := json.MarshalIndent(status, "", "  ")
+		if err := os.WriteFile(statusPath, statusBytes, 0644); err != nil {
+			return "", fmt.Errorf("failed to reset workflow status: %v", err)
+		}
+	}
+
+	return fmt.Sprintf("Workflow '%s' updated successfully. Changed: %s.\nUse Run_Workflow(\"%s\") to run the updated workflow.", workflow_id, strings.Join(changes, ", "), workflow_id), nil
+}
+
 // Create_Workflow creates a new workflow with TypeScript code that can be run later
 // Returns the workflow ID and a URL that can be used to view the workflow
 // The workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills
@@ -283,10 +357,7 @@ func Create_Workflow(name string, code string) (string, error) {
 	}
 
 	// Get frontend URL for workflow link
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:5173"
-	}
+	frontendURL := config.GetFrontendURL()
 	workflowURL := fmt.Sprintf("%s/workflows/%s", frontendURL, workflowID)
 
 	return fmt.Sprintf("Workflow created successfully.\nWorkflow ID: %s\nName: %s\nURL: %s\n\nUse Run_Workflow(\"%s\") to start the workflow.", workflowID, name, workflowURL, workflowID), nil

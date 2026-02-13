@@ -1,0 +1,23 @@
+{
+  "name": "Edit_Workflow",
+  "description": "Edit_Workflow updates the code and/or name of an existing workflow\nUse this to fix bugs, add features, or rename a workflow without deleting and recreating it\nThe workflow must not be currently running",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id",
+      "code",
+      "name"
+    ]
+  }
+}
