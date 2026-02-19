@@ -1,0 +1,15 @@
+{
+  "name": "Get_Workflow_Code",
+  "description": "Get_Workflow_Code returns the TypeScript source code of an existing workflow\nUse this to read a workflow's code before editing it, or to review what a workflow does",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "workflow_id"
+    ]
+  }
+}

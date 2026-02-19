@@ -159,9 +159,9 @@ func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req model
 	return nil
 }
 
-// fetchHistory retrieves the latest conversation history (limited to last 15 messages)
+// fetchHistory retrieves the full conversation history
 func (as *AgentSession) fetchHistory() error {
-	history, err := as.Store.FetchHistory(as.SessionID, 15)
+	history, err := as.Store.FetchHistory(as.SessionID, 0)
 	if err != nil {
 		as.Logger.Printf("Error fetching history: %v", err)
 		return &AgentError{Message: "Failed to fetch history", Fatal: false}

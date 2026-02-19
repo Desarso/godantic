@@ -20,6 +20,8 @@ import (
 //go:generate ../../gen_schema -func=Run_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Get_Workflow_Status -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Get_Workflow_Logs -file=workflows.go -out=../schemas/cached_schemas
+//go:generate ../../gen_schema -func=Get_Workflow_Code -file=workflows.go -out=../schemas/cached_schemas
+//go:generate ../../gen_schema -func=Patch_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=List_Workflows -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Stop_Workflow -file=workflows.go -out=../schemas/cached_schemas
 //go:generate ../../gen_schema -func=Delete_Workflow -file=workflows.go -out=../schemas/cached_schemas
@@ -500,6 +502,111 @@ func Get_Workflow_Status(workflow_id string) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+// Get_Workflow_Code returns the TypeScript source code of an existing workflow
+// Use this to read a workflow's code before editing it, or to review what a workflow does
+func Get_Workflow_Code(workflow_id string) (string, error) {
+	if workflow_id == "" {
+		return "", fmt.Errorf("workflow_id cannot be empty")
+	}
+
+	workflowDir := getWorkflowDir(workflow_id)
+
+	// Check if workflow exists
+	if _, err := os.Stat(workflowDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("workflow '%s' not found", workflow_id)
+	}
+
+	// Read the code
+	codePath := filepath.Join(workflowDir, "code.ts")
+	codeBytes, err := os.ReadFile(codePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read workflow code: %v", err)
+	}
+
+	// Read metadata for name
+	metadataPath := filepath.Join(workflowDir, "metadata.json")
+	metadataBytes, _ := os.ReadFile(metadataPath)
+	var metadata map[string]string
+	json.Unmarshal(metadataBytes, &metadata)
+
+	name := metadata["name"]
+	if name == "" {
+		name = "(unnamed)"
+	}
+
+	return fmt.Sprintf("Workflow: %s\nName: %s\n\n```typescript\n%s\n```", workflow_id, name, string(codeBytes)), nil
+}
+
+// Patch_Workflow performs a find-and-replace operation on a workflow's code
+// Use this for targeted edits instead of rewriting the entire code with Edit_Workflow
+// The workflow must not be currently running
+// Set replace_all to true to replace all occurrences, or false to replace only the first match
+func Patch_Workflow(workflow_id string, find string, replace string, replace_all bool) (string, error) {
+	if workflow_id == "" {
+		return "", fmt.Errorf("workflow_id cannot be empty")
+	}
+	if find == "" {
+		return "", fmt.Errorf("find string cannot be empty")
+	}
+
+	workflowDir := getWorkflowDir(workflow_id)
+	if _, err := os.Stat(workflowDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("workflow '%s' not found", workflow_id)
+	}
+
+	// Check workflow is not running
+	statusPath := filepath.Join(workflowDir, "status.json")
+	statusData, err := os.ReadFile(statusPath)
+	if err == nil {
+		var status WorkflowStatus
+		if json.Unmarshal(statusData, &status) == nil && status.Status == "running" {
+			return "", fmt.Errorf("cannot patch workflow '%s' while it is running. Stop it first with Stop_Workflow", workflow_id)
+		}
+	}
+
+	// Read current code
+	codePath := filepath.Join(workflowDir, "code.ts")
+	codeBytes, err := os.ReadFile(codePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read workflow code: %v", err)
+	}
+	code := string(codeBytes)
+
+	// Check that the find string exists in the code
+	count := strings.Count(code, find)
+	if count == 0 {
+		return "", fmt.Errorf("find string not found in workflow code. Use Get_Workflow_Code(\"%s\") to view the current code", workflow_id)
+	}
+
+	// Perform replacement
+	var newCode string
+	if replace_all {
+		newCode = strings.ReplaceAll(code, find, replace)
+	} else {
+		newCode = strings.Replace(code, find, replace, 1)
+	}
+
+	// Write updated code
+	if err := os.WriteFile(codePath, []byte(newCode), 0644); err != nil {
+		return "", fmt.Errorf("failed to write updated workflow code: %v", err)
+	}
+
+	// Reset status to pending
+	newStatus := WorkflowStatus{
+		ID:     workflow_id,
+		Status: "pending",
+	}
+	statusBytes, _ := json.MarshalIndent(newStatus, "", "  ")
+	os.WriteFile(statusPath, statusBytes, 0644)
+
+	replacedCount := count
+	if !replace_all {
+		replacedCount = 1
+	}
+
+	return fmt.Sprintf("Workflow '%s' patched successfully. Replaced %d occurrence(s).\nUse Get_Workflow_Code(\"%s\") to verify the changes.\nUse Run_Workflow(\"%s\") to run the updated workflow.", workflow_id, replacedCount, workflow_id, workflow_id), nil
 }
 
 // Get_Workflow_Logs returns the execution logs of a workflow

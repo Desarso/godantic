@@ -1,0 +1,27 @@
+{
+  "name": "Patch_Workflow",
+  "description": "Patch_Workflow performs a find-and-replace operation on a workflow's code\nUse this for targeted edits instead of rewriting the entire code with Edit_Workflow\nThe workflow must not be currently running\nSet replace_all to true to replace all occurrences, or false to replace only the first match",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "workflow_id": {
+        "type": "string"
+      },
+      "find": {
+        "type": "string"
+      },
+      "replace": {
+        "type": "string"
+      },
+      "replace_all": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "workflow_id",
+      "find",
+      "replace",
+      "replace_all"
+    ]
+  }
+}
