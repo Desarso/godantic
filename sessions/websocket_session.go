@@ -159,8 +159,10 @@ func (as *AgentSession) RunInteractionWithContext(ctx context.Context, req model
 	return nil
 }
 
-// fetchHistory retrieves the full conversation history
+// fetchHistory retrieves the full conversation history.
 func (as *AgentSession) fetchHistory() error {
+	// limit=0 means return all messages. The model adapter is responsible for
+	// provider-specific filtering if a model cannot accept a part type.
 	history, err := as.Store.FetchHistory(as.SessionID, 0)
 	if err != nil {
 		as.Logger.Printf("Error fetching history: %v", err)
@@ -1122,20 +1124,19 @@ func (as *AgentSession) saveToMemoryAsync(content string, role string) {
 	}
 
 	as.Logger.Printf("[SESSION-MEMORY] Queueing async memory save: role=%s contentLen=%d preview='%.200s'", role, len(content), content)
+	contextText := as.buildMemoryContext()
+	if contextText != "" {
+		as.Logger.Printf("[SESSION-MEMORY] Using conversation context for memory (len=%d): '%.300s'", len(contextText), contextText)
+		content = contextText
+	} else {
+		as.Logger.Printf("[SESSION-MEMORY] No conversation context, using raw content")
+	}
+	if content == "" {
+		as.Logger.Printf("[SESSION-MEMORY] SKIPPED: content is empty after context build")
+		return
+	}
 
 	go func() {
-		contextText := as.buildMemoryContext()
-		if contextText != "" {
-			as.Logger.Printf("[SESSION-MEMORY] Using conversation context for memory (len=%d): '%.300s'", len(contextText), contextText)
-			content = contextText
-		} else {
-			as.Logger.Printf("[SESSION-MEMORY] No conversation context, using raw content")
-		}
-		if content == "" {
-			as.Logger.Printf("[SESSION-MEMORY] SKIPPED: content is empty after context build")
-			return
-		}
-
 		metadata := map[string]interface{}{
 			"session_id": as.SessionID,
 			"role":       role,
