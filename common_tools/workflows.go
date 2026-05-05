@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/desarso/NCA_Assistant/config"
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
 )
@@ -359,10 +358,17 @@ func Create_Workflow(name string, code string) (string, error) {
 	}
 
 	// Get frontend URL for workflow link
-	frontendURL := config.GetFrontendURL()
+	frontendURL := getFrontendURL()
 	workflowURL := fmt.Sprintf("%s/workflows/%s", frontendURL, workflowID)
 
 	return fmt.Sprintf("Workflow created successfully.\nWorkflow ID: %s\nName: %s\nURL: %s\n\nUse Run_Workflow(\"%s\") to start the workflow.", workflowID, name, workflowURL, workflowID), nil
+}
+
+func getFrontendURL() string {
+	if frontendURL := strings.TrimRight(os.Getenv("FRONTEND_URL"), "/"); frontendURL != "" {
+		return frontendURL
+	}
+	return "http://localhost:3000"
 }
 
 // Run_Workflow starts a workflow in the background
