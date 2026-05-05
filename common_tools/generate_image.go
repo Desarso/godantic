@@ -2,6 +2,7 @@ package common_tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -69,5 +70,16 @@ func Generate_Image(prompt string) (string, error) {
 	}
 
 	imageURL := fmt.Sprintf("%s/images/%s", serverHost, filename)
-	return fmt.Sprintf("![Generated: %s](%s)\n\nImage generated successfully for prompt: \"%s\"", prompt, imageURL, prompt), nil
+	response := map[string]string{
+		"status":    "success",
+		"prompt":    prompt,
+		"image_url": imageURL,
+		"filename":  filename,
+		"message":   "Image generated successfully and is already displayed in the UI. Do not repeat the image markdown or URL in your response.",
+	}
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		return "", fmt.Errorf("failed to encode image response: %w", err)
+	}
+	return string(responseJSON), nil
 }
