@@ -58,33 +58,20 @@ type FrontendActionHandler interface {
 	HandleFrontendAction(action FrontendAction) (response string, err error)
 }
 
-// findBun attempts to locate the Bun executable
-func findBun() (string, error) {
-	// Try common installation paths
-	bunPaths := []string{
-		"bun",                                // In PATH
-		os.ExpandEnv("$HOME/.bun/bin/bun"),   // Default Bun installation
-		"/usr/local/bin/bun",                 // Homebrew installation
-		os.ExpandEnv("$HOME/.local/bin/bun"), // Local installation
-		"/opt/homebrew/bin/bun",              // M1 Mac Homebrew
-	}
-
-	for _, path := range bunPaths {
-		if _, err := exec.LookPath(path); err == nil {
-			return path, nil
-		}
-		// Also try direct file check for expanded paths
-		if strings.Contains(path, "/") {
-			if _, err := os.Stat(path); err == nil {
-				return path, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("bun executable not found. Please install Bun: https://bun.sh/")
+type typescriptRunner struct {
+	command string
+	args    []string
 }
 
-// Execute_TypeScript executes TypeScript code in a sandboxed environment using Bun
+func findTypeScriptRunner() (typescriptRunner, error) {
+	if pnpmPath, err := exec.LookPath("pnpm"); err == nil {
+		return typescriptRunner{command: pnpmPath, args: []string{"exec", "tsx"}}, nil
+	}
+
+	return typescriptRunner{}, fmt.Errorf("pnpm executable not found. Please install pnpm and run `pnpm install` in helpers/typescript_runtime")
+}
+
+// Execute_TypeScript executes TypeScript code in a sandboxed environment using pnpm/tsx
 // The code is validated and executed by a separate TypeScript file with built-in safety checks
 // Built-in libraries: web (HTTP requests), tavily (search), math (mathjs library), graph (Microsoft Graph API), skills (manage skill files)
 // Skills API: skills.list(), skills.read(name), skills.create(name, content), skills.edit(name, old, new), skills.remove(name)
@@ -110,8 +97,8 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, front
 		return "", fmt.Errorf("TypeScript code cannot be empty")
 	}
 
-	// Find Bun executable
-	bunPath, err := findBun()
+	// Find TypeScript runner
+	runner, err := findTypeScriptRunner()
 	if err != nil {
 		return "", err
 	}
@@ -123,8 +110,9 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, front
 	// Get the path to the TypeScript executor
 	executorPath := "helpers/typescript_runtime/executor.ts"
 
-	// Execute with Bun, passing code as argument
-	cmd := exec.CommandContext(ctx, bunPath, executorPath, code)
+	// Execute with pnpm/tsx, passing code as argument
+	args := append(append([]string{}, runner.args...), executorPath, code)
+	cmd := exec.CommandContext(ctx, runner.command, args...)
 
 	// Set up environment variables
 	cmd.Env = os.Environ()

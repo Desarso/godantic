@@ -417,8 +417,8 @@ func Run_Workflow(workflow_id string) (string, error) {
 		}
 	}
 
-	// Find Bun executable
-	bunPath, err := findBun()
+	// Find TypeScript runner
+	runner, err := findTypeScriptRunner()
 	if err != nil {
 		return "", err
 	}
@@ -431,7 +431,8 @@ func Run_Workflow(workflow_id string) (string, error) {
 	executorPath := "helpers/typescript_runtime/workflow_executor.ts"
 
 	// Start the workflow as a background process
-	cmd := exec.Command(bunPath, executorPath, workflow_id, code)
+	args := append(append([]string{}, runner.args...), executorPath, workflow_id, code)
+	cmd := exec.Command(runner.command, args...)
 	cmd.Env = os.Environ()
 
 	// Redirect stdout/stderr to files for debugging (the executor writes its own logs)
