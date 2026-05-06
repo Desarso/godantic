@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,11 +23,12 @@ import (
 
 // functionCallInfo holds information about a function call
 type functionCallInfo struct {
-	Name       string
-	Args       map[string]interface{}
-	ID         string
-	ArgsJSON   string
-	TextInPart *string
+	Name             string
+	Args             map[string]interface{}
+	ID               string
+	ArgsJSON         string
+	TextInPart       *string
+	ThoughtSignature string
 }
 
 // RunInteraction handles the complete agent interaction loop.
@@ -258,6 +260,10 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 			}
 			accumulated = append(accumulated, chunk.Parts...)
 			if err := as.Writer.WriteResponse(chunk); err != nil {
+				if isNormalWebSocketClose(err) {
+					as.Logger.Printf("Client disconnected while streaming; stopping writes cleanly: %v", err)
+					return nil, &AgentError{Message: "Client disconnected", Fatal: false}
+				}
 				as.Logger.Printf("Error writing stream chunk: %v", err)
 				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
 			}
@@ -283,6 +289,10 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 			}
 			accumulated = append(accumulated, chunk.Parts...)
 			if err := as.Writer.WriteResponse(chunk); err != nil {
+				if isNormalWebSocketClose(err) {
+					as.Logger.Printf("Client disconnected while streaming; stopping writes cleanly: %v", err)
+					return nil, &AgentError{Message: "Client disconnected", Fatal: false}
+				}
 				as.Logger.Printf("Error writing stream chunk: %v", err)
 				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
 			}
@@ -616,9 +626,10 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 			// Create model part for saving
 			part := models.Model_Part{
 				FunctionCall: &models.FunctionCall{
-					ID:   fc.ID,
-					Name: fc.Name,
-					Args: fc.Args,
+					ID:               fc.ID,
+					Name:             fc.Name,
+					Args:             fc.Args,
+					ThoughtSignature: fc.ThoughtSignature,
 				},
 				Text: fc.TextInPart,
 			}
@@ -638,6 +649,9 @@ func (as *AgentSession) processAccumulatedParts(parts []models.Model_Part) ([]mo
 
 				// Send tool result to client
 				if err := as.sendToolResult(fc, toolResult); err != nil {
+					if isNormalWebSocketClose(err) {
+						return toolResults, executedAny, &AgentError{Message: "Client disconnected", Fatal: false}
+					}
 					as.Logger.Printf("Error sending tool result: %v", err)
 				}
 
@@ -715,11 +729,12 @@ func (as *AgentSession) extractFunctionCalls(parts []models.Model_Part, finalTex
 				}
 
 				functionCalls = append(functionCalls, functionCallInfo{
-					Name:       funcName,
-					Args:       part.FunctionCall.Args,
-					ID:         id,
-					ArgsJSON:   argsJSON,
-					TextInPart: part.Text,
+					Name:             funcName,
+					Args:             part.FunctionCall.Args,
+					ID:               id,
+					ArgsJSON:         argsJSON,
+					TextInPart:       part.Text,
+					ThoughtSignature: part.FunctionCall.ThoughtSignature,
 				})
 			}
 		}
@@ -753,6 +768,9 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 		result, err = as.executeConsultModel(fc)
 	} else if fc.Name == "Execute_TypeScript" {
 		// Special handling for Execute_TypeScript to enable detailed internal tracing
+		if code, ok := fc.Args["code"].(string); ok {
+			as.Logger.Printf("Execute_TypeScript code (ID: %s):\n%s", fc.ID, code)
+		}
 		result, err = as.executeTypeScriptWithTracing(fc)
 	} else if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
 		// Check FrontendToolExecutor if it exists and this is a frontend tool
@@ -776,14 +794,34 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 	// Emit end trace
 	durationMs := time.Since(startTime).Milliseconds()
 	if err != nil {
-		as.emitToolTrace(fc.ID, traceID, fc.Name, "error", getToolErrorLabel(fc.Name, err), &durationMs)
+		as.emitToolTraceWithDetails(fc.ID, traceID, fc.Name, "error", getToolErrorLabel(fc.Name, err), &durationMs, map[string]interface{}{
+			"error":          err.Error(),
+			"error_label":    getToolErrorLabel(fc.Name, err),
+			"tool":           fc.Name,
+			"purpose":        getToolPurpose(fc.Args),
+			"args":           fc.Args,
+			"partial_output": result,
+		})
+		as.logFailedToolCall(fc, err, result)
+		if fc.Name == "Execute_TypeScript" {
+			as.Logger.Printf("Execute_TypeScript failed (ID: %s): %v", fc.ID, err)
+			if result != "" {
+				as.Logger.Printf("Execute_TypeScript partial output (ID: %s):\n%s", fc.ID, result)
+			}
+		}
 	} else {
 		as.emitToolTrace(fc.ID, traceID, fc.Name, "end", getToolEndLabel(fc.Name, fc.Args), &durationMs)
+		if fc.Name == "Execute_TypeScript" {
+			as.Logger.Printf("Execute_TypeScript output (ID: %s):\n%s", fc.ID, result)
+		}
 	}
 
 	// Log tool result
 	if as.FlowLogger != nil {
 		preview := result
+		if err != nil && preview == "" {
+			preview = "ERROR: " + err.Error()
+		}
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
@@ -791,6 +829,98 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 	}
 
 	return result, err
+}
+
+type failedToolCallLogEntry struct {
+	Timestamp     string                 `json:"timestamp"`
+	SessionID     string                 `json:"session_id"`
+	ToolCallID    string                 `json:"tool_call_id"`
+	ToolName      string                 `json:"tool_name"`
+	Purpose       string                 `json:"purpose,omitempty"`
+	Args          map[string]interface{} `json:"args,omitempty"`
+	Error         string                 `json:"error"`
+	PartialOutput string                 `json:"partial_output,omitempty"`
+}
+
+func failedToolCallLogPath() string {
+	if path := strings.TrimSpace(os.Getenv("FAILED_TOOL_CALL_LOG")); path != "" {
+		return path
+	}
+	return filepath.Join("logs", "failed_tool_calls.jsonl")
+}
+
+func (as *AgentSession) logFailedToolCall(fc functionCallInfo, err error, partialOutput string) {
+	if err == nil {
+		return
+	}
+
+	args := make(map[string]interface{}, len(fc.Args))
+	for key, value := range fc.Args {
+		args[key] = value
+	}
+
+	if code, ok := args["code"].(string); ok && len(code) > 12000 {
+		args["code"] = code[:12000] + "\n... (truncated)"
+	}
+	if partialOutput != "" && len(partialOutput) > 12000 {
+		partialOutput = partialOutput[:12000] + "\n... (truncated)"
+	}
+
+	entry := failedToolCallLogEntry{
+		Timestamp:     time.Now().Format(time.RFC3339Nano),
+		SessionID:     as.SessionID,
+		ToolCallID:    fc.ID,
+		ToolName:      fc.Name,
+		Purpose:       getToolPurpose(fc.Args),
+		Args:          args,
+		Error:         err.Error(),
+		PartialOutput: partialOutput,
+	}
+
+	line, jsonErr := json.Marshal(entry)
+	if jsonErr != nil {
+		as.Logger.Printf("Failed to serialize failed tool call log: %v", jsonErr)
+		return
+	}
+
+	path := failedToolCallLogPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		as.Logger.Printf("Failed to create failed tool call log directory: %v", err)
+		return
+	}
+
+	file, openErr := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if openErr != nil {
+		as.Logger.Printf("Failed to open failed tool call log: %v", openErr)
+		return
+	}
+	defer file.Close()
+
+	if _, writeErr := file.Write(append(line, '\n')); writeErr != nil {
+		as.Logger.Printf("Failed to write failed tool call log: %v", writeErr)
+	}
+}
+
+func isNormalWebSocketClose(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "websocket: close sent") ||
+		strings.Contains(errMsg, "websocket: close 1000") ||
+		strings.Contains(errMsg, "No more listeners")
+}
+
+func getToolPurpose(args map[string]interface{}) string {
+	if args == nil {
+		return ""
+	}
+	purpose, _ := args["purpose"].(string)
+	purpose = strings.TrimSpace(purpose)
+	if len(purpose) > 120 {
+		purpose = purpose[:120] + "..."
+	}
+	return purpose
 }
 
 // executeConsultModel handles the Consult_Model tool by routing to the session's consultant engine.
@@ -844,6 +974,10 @@ func (as *AgentSession) executeConsultModel(fc functionCallInfo) (string, error)
 // tool_call/tool_result messages already in chat history. Only TypeScript executor
 // internal traces (from wsTraceEmitterAdapter) are persisted.
 func (as *AgentSession) emitToolTrace(toolCallID, traceID, toolName, status, label string, durationMs *int64) {
+	as.emitToolTraceWithDetails(toolCallID, traceID, toolName, status, label, durationMs, nil)
+}
+
+func (as *AgentSession) emitToolTraceWithDetails(toolCallID, traceID, toolName, status, label string, durationMs *int64, details map[string]interface{}) {
 	timestamp := time.Now().UnixMilli()
 	tool := getToolCategory(toolName)
 
@@ -856,6 +990,7 @@ func (as *AgentSession) emitToolTrace(toolCallID, traceID, toolName, status, lab
 		Operation:  toolName,
 		Status:     status,
 		Label:      label,
+		Details:    details,
 		Timestamp:  timestamp,
 	}
 	if durationMs != nil {
@@ -894,6 +1029,10 @@ func getToolCategory(toolName string) string {
 
 // getToolStartLabel returns a human-readable start label for a tool
 func getToolStartLabel(toolName string, args map[string]interface{}) string {
+	if purpose := getToolPurpose(args); purpose != "" {
+		return purpose
+	}
+
 	switch toolName {
 	case "Search", "Brave_Search":
 		if query, ok := args["query"].(string); ok {
@@ -960,6 +1099,10 @@ func getToolErrorLabel(toolName string, err error) string {
 
 // getToolEndLabel returns a human-readable end label for a tool (past tense)
 func getToolEndLabel(toolName string, args map[string]interface{}) string {
+	if purpose := getToolPurpose(args); purpose != "" {
+		return purpose
+	}
+
 	switch toolName {
 	case "Search", "Brave_Search":
 		if query, ok := args["query"].(string); ok {
@@ -1035,7 +1178,7 @@ func (as *AgentSession) executeTypeScriptWithTracing(fc functionCallInfo) (strin
 	// Store the waiter so we can route frontend_action_response messages to it
 	as.FrontendActionWaiter = frontendActionWaiter
 
-	return common_tools.Execute_TypeScriptWithTracing(code, traceEmitter, frontendHandler)
+	return common_tools.Execute_TypeScriptWithTracingAndEnv(code, traceEmitter, as.RequestEnv, frontendHandler)
 }
 
 // wsTraceEmitterAdapter adapts WebSocketTraceEmitter to common_tools.TraceEmitter
@@ -1118,21 +1261,30 @@ func (as *AgentSession) sendError(message string, fatal bool) error {
 
 // saveToMemoryAsync saves content to memory asynchronously (fire-and-forget)
 func (as *AgentSession) saveToMemoryAsync(content string, role string) {
+	memoryDebug := os.Getenv("MEMORY_DEBUG") == "true"
 	if as.Memory == nil {
-		as.Logger.Printf("[SESSION-MEMORY] Memory is nil, skipping save for role=%s", role)
+		if memoryDebug {
+			as.Logger.Printf("[SESSION-MEMORY] Memory is nil, skipping save for role=%s", role)
+		}
 		return
 	}
 
-	as.Logger.Printf("[SESSION-MEMORY] Queueing async memory save: role=%s contentLen=%d preview='%.200s'", role, len(content), content)
+	if memoryDebug {
+		as.Logger.Printf("[SESSION-MEMORY] Queueing async memory save: role=%s contentLen=%d preview='%.200s'", role, len(content), content)
+	}
 	contextText := as.buildMemoryContext()
 	if contextText != "" {
-		as.Logger.Printf("[SESSION-MEMORY] Using conversation context for memory (len=%d): '%.300s'", len(contextText), contextText)
+		if memoryDebug {
+			as.Logger.Printf("[SESSION-MEMORY] Using conversation context for memory (len=%d): '%.300s'", len(contextText), contextText)
+		}
 		content = contextText
-	} else {
+	} else if memoryDebug {
 		as.Logger.Printf("[SESSION-MEMORY] No conversation context, using raw content")
 	}
 	if content == "" {
-		as.Logger.Printf("[SESSION-MEMORY] SKIPPED: content is empty after context build")
+		if memoryDebug {
+			as.Logger.Printf("[SESSION-MEMORY] SKIPPED: content is empty after context build")
+		}
 		return
 	}
 
@@ -1142,10 +1294,12 @@ func (as *AgentSession) saveToMemoryAsync(content string, role string) {
 			"role":       role,
 			"timestamp":  time.Now().Format(time.RFC3339),
 		}
-		as.Logger.Printf("[SESSION-MEMORY] Calling AddMemory: role=%s contentLen=%d", role, len(content))
+		if memoryDebug {
+			as.Logger.Printf("[SESSION-MEMORY] Calling AddMemory: role=%s contentLen=%d", role, len(content))
+		}
 		if err := as.Memory.AddMemory(content, metadata); err != nil {
 			as.Logger.Printf("[SESSION-MEMORY] FAILED to save memory: %v", err)
-		} else {
+		} else if memoryDebug {
 			as.Logger.Printf("[SESSION-MEMORY] SUCCESS: saved memory for role=%s", role)
 		}
 	}()

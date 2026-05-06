@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -79,6 +80,17 @@ func coerceArgToType(argValue interface{}, expectedType reflect.Type) (reflect.V
 	}
 
 	return reflect.Value{}, fmt.Errorf("cannot convert %T to %s", argValue, expectedType.Kind())
+}
+
+const toolPurposeArg = "purpose"
+
+func argsWithoutReservedKeys(args map[string]interface{}) map[string]interface{} {
+	if len(args) == 0 {
+		return args
+	}
+	cleaned := maps.Clone(args)
+	delete(cleaned, toolPurposeArg)
+	return cleaned
 }
 
 //go:embed schemas/cached_schemas/*.json
@@ -321,6 +333,16 @@ func Create_Tool(fn interface{}) (models.FunctionDeclaration, error) {
 		Callable:    fn,
 	}
 
+	if tool.Parameters.Type == "object" {
+		if tool.Parameters.Properties == nil {
+			tool.Parameters.Properties = map[string]interface{}{}
+		}
+		tool.Parameters.Properties[toolPurposeArg] = map[string]interface{}{
+			"type":        "string",
+			"description": "Very short, user-facing label for why this tool is being called. Use dynamic action labels with -ing verbs. Prefer 2-3 words, max 4, e.g. 'Checking flow' or 'Reading skill'. Avoid generic labels like 'executing code'.",
+		}
+	}
+
 	return tool, nil
 }
 
@@ -352,6 +374,7 @@ func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string
 
 	// Trim whitespace from function name (some models output with leading/trailing spaces)
 	functionName = strings.TrimSpace(functionName)
+	functionCallArgs = argsWithoutReservedKeys(functionCallArgs)
 
 	for _, tool := range agent.Tools {
 		if tool.Name == functionName {

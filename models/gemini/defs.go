@@ -19,8 +19,9 @@ type Content struct {
 }
 
 type Part struct {
-	Text         *string       `json:"text,omitempty"`
-	FunctionCall *FunctionCall `json:"functionCall,omitempty"`
+	Text             *string       `json:"text,omitempty"`
+	FunctionCall     *FunctionCall `json:"functionCall,omitempty"`
+	ThoughtSignature string        `json:"thoughtSignature,omitempty"`
 }
 
 type FunctionCall struct {
@@ -72,8 +73,15 @@ type Request_Part struct {
 	Text             string                   `json:"text,omitempty"`
 	FileData         *FileData                `json:"file_data,omitempty"`
 	InlineData       *InlineData              `json:"inline_data,omitempty"`
-	FunctionCall     *models.FunctionCall     `json:"function_call,omitempty"`
+	FunctionCall     *Request_Function_Call   `json:"function_call,omitempty"`
 	FunctionResponse *models.FunctionResponse `json:"function_response,omitempty"`
+	ThoughtSignature string                   `json:"thought_signature,omitempty"`
+}
+
+type Request_Function_Call struct {
+	ID   string                 `json:"id,omitempty"`
+	Name string                 `json:"name"`
+	Args map[string]interface{} `json:"args"`
 }
 
 type FileData struct {

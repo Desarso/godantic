@@ -85,8 +85,9 @@ func (g *Gemini_Model) gemini_response_to_model_response(response Gemini_respons
 			}
 			if part.FunctionCall != nil {
 				modelPart.FunctionCall = &models.FunctionCall{
-					Name: part.FunctionCall.Name,
-					Args: part.FunctionCall.Args,
+					Name:             part.FunctionCall.Name,
+					Args:             part.FunctionCall.Args,
+					ThoughtSignature: part.ThoughtSignature,
 				}
 			}
 			modelResponse.Parts = append(modelResponse.Parts, modelPart)
@@ -559,12 +560,15 @@ type GeminiRequestResult struct {
 // Returns the request body and any warnings about content that was filtered/skipped
 func create_gemini_request(message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, systemPrompt string) (GeminiRequestResult, error) {
 	var warnings []models.HistoryWarning
+	skippedUnsignedFunctionCalls := 0
+	skippedHistoricalFunctionResponses := 0
 	allContents := []Gemini_Content{}
 
 	// 1. Process conversation history
 	for msgIdx, histMsg := range conversationHistory {
 		role := histMsg.Role // Use the role directly from history
 		var historyParts []Request_Part
+		intentionallySkippedToolHistory := false
 
 		// Unmarshal PartsJSON based on Role and Type
 		if histMsg.PartsJSON != "" && histMsg.PartsJSON != "{}" && histMsg.PartsJSON != "null" {
@@ -583,6 +587,12 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 				// Convert []models.User_Part to []Request_Part, filtering out empty parts
 				historyParts = []Request_Part{}
 				for _, p := range userParts {
+					if p.FunctionResponse != nil {
+						skippedHistoricalFunctionResponses++
+						intentionallySkippedToolHistory = true
+						continue
+					}
+
 					// Manual conversion for InlineData and FileData
 					var inlineDataPart *InlineData
 					var fileDataPart *FileData
@@ -728,9 +738,22 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 						log.Printf("Note: Reasoning content from previous model not included in Gemini history")
 					}
 
-					reqPart := Request_Part{
-						Text:         textContent,
-						FunctionCall: p.FunctionCall,
+					reqPart := Request_Part{Text: textContent}
+					if p.FunctionCall != nil {
+						if p.FunctionCall.ThoughtSignature != "" {
+							reqPart.FunctionCall = &Request_Function_Call{
+								ID:   p.FunctionCall.ID,
+								Name: p.FunctionCall.Name,
+								Args: p.FunctionCall.Args,
+							}
+							reqPart.ThoughtSignature = p.FunctionCall.ThoughtSignature
+						} else {
+							skippedUnsignedFunctionCalls++
+							intentionallySkippedToolHistory = true
+							if reqPart.Text == "" {
+								continue
+							}
+						}
 					}
 
 					// Only add non-empty parts (Gemini requires at least one field to be set)
@@ -757,9 +780,26 @@ func create_gemini_request(message models.User_Message, tools []models.FunctionD
 				Role:  role,
 				Parts: historyParts, // Use the unmarshaled and converted parts
 			})
-		} else {
+		} else if !intentionallySkippedToolHistory {
 			log.Printf("Warning: No parts generated after unmarshalling history message %d (Role: %s, Type: %s). Skipping.", histMsg.ID, role, histMsg.Type)
 		}
+	}
+
+	if skippedUnsignedFunctionCalls > 0 {
+		log.Printf("Warning: Skipped %d Gemini history function call(s) because thought_signature is unavailable", skippedUnsignedFunctionCalls)
+		warnings = append(warnings, models.HistoryWarning{
+			Type:    "unsupported_content",
+			Message: "Skipped previous Gemini tool calls",
+			Details: "Gemini requires thought_signature when replaying function calls with tools",
+		})
+	}
+	if skippedHistoricalFunctionResponses > 0 {
+		log.Printf("Warning: Skipped %d Gemini history function response(s) because prior tool calls may not include thought_signature", skippedHistoricalFunctionResponses)
+		warnings = append(warnings, models.HistoryWarning{
+			Type:    "unsupported_content",
+			Message: "Skipped previous Gemini tool results",
+			Details: "Gemini tool history requires signed function calls; current tool results are still sent normally",
+		})
 	}
 
 	// 2. Handle tool results provided for the *current* turn

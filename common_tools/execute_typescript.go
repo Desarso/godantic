@@ -61,11 +61,23 @@ type FrontendActionHandler interface {
 type typescriptRunner struct {
 	command string
 	args    []string
+	dir     string
 }
 
 func findTypeScriptRunner() (typescriptRunner, error) {
+	runtimeDir := ""
+	for _, candidate := range []string{"helpers/typescript_runtime", "../helpers/typescript_runtime"} {
+		if stat, err := os.Stat(candidate); err == nil && stat.IsDir() {
+			runtimeDir = candidate
+			break
+		}
+	}
+	if runtimeDir == "" {
+		return typescriptRunner{}, fmt.Errorf("TypeScript runtime directory not found")
+	}
+
 	if pnpmPath, err := exec.LookPath("pnpm"); err == nil {
-		return typescriptRunner{command: pnpmPath, args: []string{"exec", "tsx"}}, nil
+		return typescriptRunner{command: pnpmPath, args: []string{"exec", "tsx"}, dir: runtimeDir}, nil
 	}
 
 	return typescriptRunner{}, fmt.Errorf("pnpm executable not found. Please install pnpm and run `pnpm install` in helpers/typescript_runtime")
@@ -88,6 +100,11 @@ func Execute_TypeScript(code string) (string, error) {
 // If traceEmitter is nil, traces are silently discarded (backward compatible)
 // If frontendHandler is nil, frontend actions from TypeScript will fail
 func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, frontendHandler ...FrontendActionHandler) (string, error) {
+	return Execute_TypeScriptWithTracingAndEnv(code, traceEmitter, nil, frontendHandler...)
+}
+
+// Execute_TypeScriptWithTracingAndEnv executes TypeScript code with extra per-request environment variables.
+func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter, extraEnv map[string]string, frontendHandler ...FrontendActionHandler) (string, error) {
 	var feHandler FrontendActionHandler
 	if len(frontendHandler) > 0 {
 		feHandler = frontendHandler[0]
@@ -107,15 +124,21 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, front
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Get the path to the TypeScript executor
-	executorPath := "helpers/typescript_runtime/executor.ts"
+	// Get the path to the TypeScript executor, relative to the runtime package.
+	executorPath := "executor.ts"
 
 	// Execute with pnpm/tsx, passing code as argument
 	args := append(append([]string{}, runner.args...), executorPath, code)
 	cmd := exec.CommandContext(ctx, runner.command, args...)
+	cmd.Dir = runner.dir
 
 	// Set up environment variables
 	cmd.Env = os.Environ()
+	for key, value := range extraEnv {
+		if key != "" && value != "" {
+			cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+		}
+	}
 
 	// Capture stdout
 	var stdout bytes.Buffer
@@ -144,11 +167,16 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, front
 		return "", fmt.Errorf("failed to start TypeScript executor: %v", err)
 	}
 
-	// Process stderr for traces and frontend action requests
-	go processStderrWithFrontendActions(stderrPipe, traceEmitter, feHandler, stdinPipe, &stderr)
+	// Process stderr for traces and frontend action requests.
+	stderrDone := make(chan struct{})
+	go func() {
+		defer close(stderrDone)
+		processStderrWithFrontendActions(stderrPipe, traceEmitter, feHandler, stdinPipe, &stderr)
+	}()
 
 	// Wait for command to finish
 	err = cmd.Wait()
+	<-stderrDone
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
@@ -197,7 +225,12 @@ func Execute_TypeScriptWithTracing(code string, traceEmitter TraceEmitter, front
 
 	// If both stdout and stderr are empty or unparseable, return generic error
 	if err != nil {
-		return "", fmt.Errorf("execution failed: %v", err)
+		wd, _ := os.Getwd()
+		runnerCmd := strings.Join(args, " ")
+		if stdoutStr != "" {
+			return "", fmt.Errorf("execution failed: %v\ncommand: %s %s\nworking_dir: %s/%s\n\nstdout:\n%s", err, runner.command, runnerCmd, wd, runner.dir, stdoutStr)
+		}
+		return "", fmt.Errorf("execution failed: %v\ncommand: %s %s\nworking_dir: %s/%s", err, runner.command, runnerCmd, wd, runner.dir)
 	}
 
 	// Fallback: return raw stdout if it exists but wasn't JSON

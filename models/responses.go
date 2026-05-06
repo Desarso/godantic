@@ -16,9 +16,10 @@ type Model_Response struct {
 //may be a string or a function call and it will be parts
 
 type FunctionCall struct {
-	ID   string                 `json:"id,omitempty"` // Unique ID for this specific call instance
-	Name string                 `json:"name"`
-	Args map[string]interface{} `json:"args"`
+	ID               string                 `json:"id,omitempty"` // Unique ID for this specific call instance
+	Name             string                 `json:"name"`
+	Args             map[string]interface{} `json:"args"`
+	ThoughtSignature string                 `json:"thoughtSignature,omitempty"`
 }
 
 type Model_Part struct {

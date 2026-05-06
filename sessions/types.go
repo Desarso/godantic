@@ -279,6 +279,7 @@ type AgentSession struct {
 	Memory               MemoryManager        // Optional: for memory storage and retrieval
 	FlowLogger           FlowLogger           // Optional: for logging message flow events
 	ConsultantEngine     ConsultantEngine     // Optional: for AI model consultation (Consult_Model tool)
+	RequestEnv           map[string]string    // Optional: per-request env passed to TypeScript tools
 
 	// ConsultantTakeoverFunc is called for takeover-mode consultations.
 	// The session layer sets this to a closure that has access to buildAgent, tools, etc.
