@@ -970,9 +970,9 @@ func (as *AgentSession) executeConsultModel(fc functionCallInfo) (string, error)
 }
 
 // emitToolTrace sends a trace event over WebSocket for real-time visualization
-// Note: Regular tool traces are NOT persisted to database since they're 1:1 with
-// tool_call/tool_result messages already in chat history. Only TypeScript executor
-// internal traces (from wsTraceEmitterAdapter) are persisted.
+// Note: Regular successful tool traces are NOT persisted to database since they're
+// 1:1 with tool_call/tool_result messages already in chat history. Error traces
+// are persisted because they contain diagnostics useful for debug exports.
 func (as *AgentSession) emitToolTrace(toolCallID, traceID, toolName, status, label string, durationMs *int64) {
 	as.emitToolTraceWithDetails(toolCallID, traceID, toolName, status, label, durationMs, nil)
 }
@@ -999,11 +999,27 @@ func (as *AgentSession) emitToolTraceWithDetails(toolCallID, traceID, toolName, 
 	// Ignore errors - traces are non-critical for WebSocket
 	_ = as.Writer.WriteResponse(msg)
 
-	// Note: We intentionally do NOT persist regular tool traces to the database.
-	// Regular tools (Search, Generate_Image, etc.) have their execution recorded
-	// in the chat history as tool_call and tool_result messages. Persisting traces
-	// would be redundant. Only TypeScript executor internal operations (web.get,
-	// tavily.search, etc.) are persisted via wsTraceEmitterAdapter.
+	if status == "error" && as.TraceStore != nil {
+		dbTrace := &stores.ExecutionTrace{
+			ConversationID: as.SessionID,
+			ToolCallID:     toolCallID,
+			TraceID:        traceID,
+			Tool:           tool,
+			Operation:      toolName,
+			Status:         status,
+			Label:          label,
+			Details:        details,
+			Timestamp:      timestamp,
+		}
+		if durationMs != nil {
+			dbTrace.DurationMS = *durationMs
+		}
+		go func() {
+			if saveErr := as.TraceStore.SaveTrace(dbTrace); saveErr != nil && as.Logger != nil {
+				as.Logger.Printf("Warning: Failed to save tool error trace to database: %v", saveErr)
+			}
+		}()
+	}
 }
 
 // getToolCategory returns the category for a tool (for UI icons)

@@ -31,12 +31,12 @@ func init() {
 
 // Anthropic_Model implements the godantic Model interface for the Anthropic Messages API.
 type Anthropic_Model struct {
-	Model        string
-	Temperature  *float64
-	MaxTokens    *int
-	SystemPrompt string
-	BaseURL      string   // Optional: custom API endpoint
-	APIKeyEnv    string   // Optional: env var name for API key (defaults to ANTHROPIC_API_KEY)
+	Model          string
+	Temperature    *float64
+	MaxTokens      *int
+	SystemPrompt   string
+	BaseURL        string // Optional: custom API endpoint
+	APIKeyEnv      string // Optional: env var name for API key (defaults to ANTHROPIC_API_KEY)
 	SupportsVision bool
 
 	WarningCallback func(warnings []models.HistoryWarning) `json:"-"`
@@ -332,7 +332,7 @@ func (a *Anthropic_Model) buildRequest(model string, message models.User_Message
 			blocks = append(blocks, ContentBlock{
 				Type:      "tool_result",
 				ToolUseID: tr.Tool_ID,
-				Content:   tr.Tool_Output,
+				Content:   models.FormatToolResultForModel(tr.Tool_Name, tr.Tool_ID, tr.Tool_Output),
 			})
 		}
 		messages = append(messages, AnthropicMsg{
@@ -437,13 +437,12 @@ func (a *Anthropic_Model) convertHistoryMessage(histMsg stores.Message) (*Anthro
 		// Check for function responses
 		for _, part := range userParts {
 			if part.FunctionResponse != nil {
-				responseBytes, _ := json.Marshal(part.FunctionResponse.Response)
 				return &AnthropicMsg{
 					Role: "user",
 					Content: []ContentBlock{{
 						Type:      "tool_result",
 						ToolUseID: part.FunctionResponse.ID,
-						Content:   string(responseBytes),
+						Content:   models.FormatFunctionResponseForModel(part.FunctionResponse.Name, part.FunctionResponse.ID, part.FunctionResponse.Response),
 					}},
 				}, nil
 			}

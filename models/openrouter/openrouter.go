@@ -517,7 +517,7 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 			toolCallID := tr.Tool_ID
 			messages = append(messages, Message{
 				Role:       "tool",
-				Content:    tr.Tool_Output,
+				Content:    models.FormatToolResultForModel(tr.Tool_Name, tr.Tool_ID, tr.Tool_Output),
 				ToolCallID: &toolCallID,
 			})
 		}
@@ -589,10 +589,9 @@ func (o *OpenRouter_Model) convertHistoryMessageWithWarnings(histMsg stores.Mess
 		for _, part := range userParts {
 			if part.FunctionResponse != nil {
 				toolCallID := part.FunctionResponse.ID
-				responseBytes, _ := json.Marshal(part.FunctionResponse.Response)
 				return &Message{
 					Role:       "tool",
-					Content:    string(responseBytes),
+					Content:    models.FormatFunctionResponseForModel(part.FunctionResponse.Name, part.FunctionResponse.ID, part.FunctionResponse.Response),
 					ToolCallID: &toolCallID,
 				}, warnings, nil
 			}

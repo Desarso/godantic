@@ -422,7 +422,7 @@ func (g *Groq_Model) createGroqRequest(model string, message models.User_Message
 			toolCallID := tr.Tool_ID
 			messages = append(messages, Message{
 				Role:       "tool",
-				Content:    tr.Tool_Output,
+				Content:    models.FormatToolResultForModel(tr.Tool_Name, tr.Tool_ID, tr.Tool_Output),
 				ToolCallID: &toolCallID,
 			})
 		}
@@ -483,10 +483,9 @@ func (g *Groq_Model) convertHistoryMessage(histMsg stores.Message) (*Message, er
 		for _, part := range userParts {
 			if part.FunctionResponse != nil {
 				toolCallID := part.FunctionResponse.ID
-				responseBytes, _ := json.Marshal(part.FunctionResponse.Response)
 				return &Message{
 					Role:       "tool",
-					Content:    string(responseBytes),
+					Content:    models.FormatFunctionResponseForModel(part.FunctionResponse.Name, part.FunctionResponse.ID, part.FunctionResponse.Response),
 					ToolCallID: &toolCallID,
 				}, nil
 			}

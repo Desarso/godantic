@@ -185,52 +185,52 @@ func (c *Cerebras_Model) makeRequest(model string, message models.User_Message, 
 		return CerebrasResponse{}, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-		if resp.StatusCode != http.StatusOK {
-			bodyStr := string(body)
-			
-			// Log the raw response for debugging
-			log.Printf("Cerebras API error response (status %d): %s", resp.StatusCode, bodyStr)
-			
-			// Try to parse as structured error response
-			var errResp ErrorResponse
-			if err := json.Unmarshal(body, &errResp); err == nil {
-				// Successfully parsed error response
-				errorMsg := fmt.Sprintf("Cerebras API error (status %d)", resp.StatusCode)
-				
-				// Add message if available
-				message := strings.TrimSpace(errResp.Message)
-				if message != "" {
-					errorMsg += fmt.Sprintf(": %s", message)
-				} else {
-					errorMsg += ": (no error message provided)"
-				}
-				
-				// Add type if available
-				if errResp.Type != "" {
-					errorMsg += fmt.Sprintf(" (type: %s)", errResp.Type)
-				}
-				
-				// Add code if available
-				if errResp.Code != "" {
-					errorMsg += fmt.Sprintf(" (code: %s)", errResp.Code)
-				}
-				
-				// If we have a body but no useful parsed info, include raw body for debugging
-				if message == "" && errResp.Type == "" && bodyStr != "" {
-					errorMsg += fmt.Sprintf(" - Raw response: %s", bodyStr)
-				}
-				
-				log.Printf("Parsed Cerebras error: %+v", errResp)
-				return CerebrasResponse{}, fmt.Errorf(errorMsg)
+	if resp.StatusCode != http.StatusOK {
+		bodyStr := string(body)
+
+		// Log the raw response for debugging
+		log.Printf("Cerebras API error response (status %d): %s", resp.StatusCode, bodyStr)
+
+		// Try to parse as structured error response
+		var errResp ErrorResponse
+		if err := json.Unmarshal(body, &errResp); err == nil {
+			// Successfully parsed error response
+			errorMsg := fmt.Sprintf("Cerebras API error (status %d)", resp.StatusCode)
+
+			// Add message if available
+			message := strings.TrimSpace(errResp.Message)
+			if message != "" {
+				errorMsg += fmt.Sprintf(": %s", message)
+			} else {
+				errorMsg += ": (no error message provided)"
 			}
-			
-			// Failed to parse as JSON - show raw response
-			log.Printf("Failed to parse Cerebras error response as JSON: %v, body: %s", err, bodyStr)
-			if bodyStr == "" {
-				bodyStr = "(empty response body)"
+
+			// Add type if available
+			if errResp.Type != "" {
+				errorMsg += fmt.Sprintf(" (type: %s)", errResp.Type)
 			}
-			return CerebrasResponse{}, fmt.Errorf("Cerebras API error (status %d): %s", resp.StatusCode, bodyStr)
+
+			// Add code if available
+			if errResp.Code != "" {
+				errorMsg += fmt.Sprintf(" (code: %s)", errResp.Code)
+			}
+
+			// If we have a body but no useful parsed info, include raw body for debugging
+			if message == "" && errResp.Type == "" && bodyStr != "" {
+				errorMsg += fmt.Sprintf(" - Raw response: %s", bodyStr)
+			}
+
+			log.Printf("Parsed Cerebras error: %+v", errResp)
+			return CerebrasResponse{}, fmt.Errorf("%s", errorMsg)
 		}
+
+		// Failed to parse as JSON - show raw response
+		log.Printf("Failed to parse Cerebras error response as JSON: %v, body: %s", err, bodyStr)
+		if bodyStr == "" {
+			bodyStr = "(empty response body)"
+		}
+		return CerebrasResponse{}, fmt.Errorf("Cerebras API error (status %d): %s", resp.StatusCode, bodyStr)
+	}
 
 	var response CerebrasResponse
 	if err := json.Unmarshal(body, &response); err != nil {
@@ -289,16 +289,16 @@ func (c *Cerebras_Model) makeStreamRequest(model string, message models.User_Mes
 		if resp.StatusCode != http.StatusOK {
 			body, readErr := io.ReadAll(resp.Body)
 			bodyStr := string(body)
-			
+
 			// Log the raw response for debugging
 			log.Printf("Cerebras API error response (status %d): %s", resp.StatusCode, bodyStr)
-			
+
 			// Try to parse as structured error response
 			var errResp ErrorResponse
 			if err := json.Unmarshal(body, &errResp); err == nil {
 				// Successfully parsed error response
 				errorMsg := fmt.Sprintf("Cerebras API error (status %d)", resp.StatusCode)
-				
+
 				// Add message if available
 				message := strings.TrimSpace(errResp.Message)
 				if message != "" {
@@ -306,24 +306,24 @@ func (c *Cerebras_Model) makeStreamRequest(model string, message models.User_Mes
 				} else {
 					errorMsg += ": (no error message provided)"
 				}
-				
+
 				// Add type if available
 				if errResp.Type != "" {
 					errorMsg += fmt.Sprintf(" (type: %s)", errResp.Type)
 				}
-				
+
 				// Add code if available
 				if errResp.Code != "" {
 					errorMsg += fmt.Sprintf(" (code: %s)", errResp.Code)
 				}
-				
+
 				// If we have a body but no useful parsed info, include raw body for debugging
 				if message == "" && errResp.Type == "" && bodyStr != "" {
 					errorMsg += fmt.Sprintf(" - Raw response: %s", bodyStr)
 				}
-				
+
 				log.Printf("Parsed Cerebras error: %+v", errResp)
-				errChan <- fmt.Errorf(errorMsg)
+				errChan <- fmt.Errorf("%s", errorMsg)
 			} else {
 				// Failed to parse as JSON - show raw response
 				log.Printf("Failed to parse Cerebras error response as JSON: %v, body: %s", err, bodyStr)
@@ -504,7 +504,7 @@ func (c *Cerebras_Model) createCerebrasRequest(model string, message models.User
 			toolCallID := tr.Tool_ID
 			messages = append(messages, Message{
 				Role:       "tool",
-				Content:    tr.Tool_Output,
+				Content:    models.FormatToolResultForModel(tr.Tool_Name, tr.Tool_ID, tr.Tool_Output),
 				ToolCallID: &toolCallID,
 			})
 		}
@@ -571,10 +571,9 @@ func (c *Cerebras_Model) convertHistoryMessage(histMsg stores.Message) (*Message
 		for _, part := range userParts {
 			if part.FunctionResponse != nil {
 				toolCallID := part.FunctionResponse.ID
-				responseBytes, _ := json.Marshal(part.FunctionResponse.Response)
 				return &Message{
 					Role:       "tool",
-					Content:    string(responseBytes),
+					Content:    models.FormatFunctionResponseForModel(part.FunctionResponse.Name, part.FunctionResponse.ID, part.FunctionResponse.Response),
 					ToolCallID: &toolCallID,
 				}, nil
 			}
