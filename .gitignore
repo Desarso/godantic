@@ -1,1 +1,5 @@
 .env
+tmp/
+docs/.astro/
+docs/dist/
+docs/node_modules/

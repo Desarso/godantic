@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title id="title">godantic mark</title>
+  <desc id="desc">A geometric green and cream agent circuit mark.</desc>
+  <defs>
+    <linearGradient id="g" x1="32" x2="208" y1="36" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f8f3e7"/>
+      <stop offset="0.52" stop-color="#2ed18f"/>
+      <stop offset="1" stop-color="#0f8c63"/>
+    </linearGradient>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#2ed18f" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="240" height="240" rx="54" fill="#15120e"/>
+  <path fill="none" stroke="#332c22" stroke-width="1.5" d="M42 78h54m48 0h54M42 162h54m48 0h54M78 42v54m0 48v54M162 42v54m0 48v54"/>
+  <path filter="url(#s)" fill="url(#g)" d="M120 34 194 77v86l-74 43-74-43V77l74-43Zm0 28-50 29v58l50 29 50-29V91l-50-29Z"/>
+  <circle cx="120" cy="120" r="34" fill="#15120e" stroke="#f8f3e7" stroke-width="10"/>
+  <circle cx="120" cy="120" r="9" fill="#2ed18f"/>
+  <circle cx="78" cy="78" r="8" fill="#f8f3e7"/>
+  <circle cx="162" cy="78" r="8" fill="#2ed18f"/>
+  <circle cx="78" cy="162" r="8" fill="#2ed18f"/>
+  <circle cx="162" cy="162" r="8" fill="#f8f3e7"/>
+</svg>

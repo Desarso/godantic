@@ -1,0 +1,62 @@
+---
+title: godantic
+description: Build Go LLM agents with providers, tools, sessions, and durable chat history.
+template: splash
+hero:
+  tagline: A compact Go framework for production chat agents.
+  image:
+    alt: godantic mark
+    file: ../../assets/godantic-mark.svg
+  actions:
+    - text: Get started
+      link: /getting-started/
+      icon: right-arrow
+    - text: API guide
+      link: /api/
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+`godantic` gives Go apps a clear agent core: one model interface, typed tools, reusable sessions, and persistent chat history.
+
+It stays out of your way. You choose the provider, storage backend, and transport. `godantic` handles the repeated pieces: model calls, streaming, tool execution, tool result feedback, WebSocket protocol plumbing, and history adaptation.
+
+<CardGrid>
+  <Card title="Bring your model" icon="setting">
+    Use Gemini, OpenRouter, Groq, Cerebras, Anthropic, or any custom implementation of the `Model` interface.
+  </Card>
+  <Card title="Expose Go tools" icon="puzzle">
+    Register JSON-schema tool declarations backed by ordinary Go functions returning `(string, error)`.
+  </Card>
+  <Card title="Pick your transport" icon="rocket">
+    Use HTTP request/response, streaming channels, SSE, or the built-in WebSocket session loop.
+  </Card>
+  <Card title="Persist history" icon="document">
+    Store conversations in SQLite, PostgreSQL, or your own `MessageStore` implementation.
+  </Card>
+</CardGrid>
+
+## Core Shape
+
+```go
+store, _ := stores.NewSQLiteStoreSimple("chat.sqlite")
+
+agent := godantic.Create_Agent(
+    godantic.NewGeminiModel("gemini-2.0-flash"),
+    tools,
+)
+
+session := godantic.NewHTTPSession("conversation-1", &agent, store)
+response, err := session.RunSingleInteraction(userMessage)
+```
+
+## When To Use It
+
+Use `godantic` when you want to build a Go-native assistant, support multiple providers, offer tool calling, or keep the chat/session layer separate from your HTTP framework.
+
+It is especially useful for apps that need long-running WebSocket interactions, user-confirmed tool calls, trace persistence, or conversation history shared across providers.
+
+## Static Docs Deployment
+
+These docs are an Astro Starlight static site. GitHub Pages can serve the built `dist/` output directly. The included workflow builds from `docs/` and publishes `docs/dist` to GitHub Pages on pushes to `main`.

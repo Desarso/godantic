@@ -1,0 +1,170 @@
+---
+title: Getting Started
+description: Install godantic, configure a provider, create an agent, and run a chat session.
+---
+
+This guide gets a minimal `godantic` chat running with Gemini and SQLite. The same structure works with OpenRouter, Groq, Cerebras, and Anthropic.
+
+## Install
+
+```bash
+go get github.com/Desarso/godantic
+```
+
+If you are developing against a local checkout, add a replace directive in your app's `go.mod`:
+
+```go
+replace github.com/Desarso/godantic => ./godantic
+```
+
+## Set An API Key
+
+For Gemini:
+
+```bash
+export GEMINI_API_KEY=...
+```
+
+Provider env vars:
+
+| Provider | Env var |
+| --- | --- |
+| Gemini | `GEMINI_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Groq | `GROQ_API_KEY` |
+| Cerebras | `CEREBRAS_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+
+## Create A Session
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+
+    "github.com/Desarso/godantic"
+    "github.com/Desarso/godantic/models"
+    "github.com/Desarso/godantic/stores"
+)
+
+func main() {
+    store, err := stores.NewSQLiteStoreSimple("chat.sqlite")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    agent := godantic.Create_Agent(
+        godantic.NewGeminiModel("gemini-2.0-flash"),
+        nil,
+    )
+
+    session := godantic.NewHTTPSession("conversation-1", &agent, store)
+
+    message := models.User_Message{
+        Role: "user",
+        Content: models.Content{Parts: []models.User_Part{{
+            Text: "Explain godantic in one sentence.",
+        }}},
+    }
+
+    response, err := session.RunSingleInteraction(message)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    for _, part := range response.Parts {
+        if part.Text != nil {
+            fmt.Println(*part.Text)
+        }
+    }
+}
+```
+
+## Add A Tool
+
+Tools are `models.FunctionDeclaration` values with a Go function as `Callable`.
+
+```go
+func GetWeather(city string) (string, error) {
+    return "Sunny in " + city, nil
+}
+
+weatherTool := models.FunctionDeclaration{
+    Name:        "get_weather",
+    Description: "Get the current weather for a city.",
+    Parameters: models.Parameters{
+        Type: "object",
+        Properties: map[string]interface{}{
+            "city": map[string]interface{}{
+                "type": "string",
+                "description": "City name",
+            },
+        },
+        Required: []string{"city"},
+    },
+    Callable: GetWeather,
+}
+
+agent := godantic.Create_Agent(
+    godantic.NewGeminiModel("gemini-2.0-flash"),
+    []models.FunctionDeclaration{weatherTool},
+)
+```
+
+For built-in tools, import `common_tools`:
+
+```go
+import "github.com/Desarso/godantic/common_tools"
+
+tools := common_tools.DefaultTools()
+```
+
+Some built-ins require env vars. `Brave_Search` uses `BRAVE_API_KEY`, and `Search` uses `PERPLEXITY_API_KEY`.
+
+## Stream Responses
+
+```go
+stream, errs := session.RunStreamInteraction(message)
+
+for stream != nil || errs != nil {
+    select {
+    case chunk, ok := <-stream:
+        if !ok {
+            stream = nil
+            continue
+        }
+        // Send chunk to the client.
+        _ = chunk
+    case err, ok := <-errs:
+        if ok && err != nil {
+            log.Fatal(err)
+        }
+        errs = nil
+    }
+}
+```
+
+## Deploy These Docs To GitHub Pages
+
+The docs site lives in `docs/` and builds to static HTML:
+
+```bash
+cd docs
+npm install
+npm run build
+```
+
+The static site is emitted to `docs/dist/`. For GitHub Pages under `desarso.github.io/godantic`, `astro.config.mjs` sets:
+
+```js
+export default defineConfig({
+  site: 'https://desarso.github.io',
+  base: '/godantic',
+});
+```
+
+If the repo becomes a user site like `desarso.github.io`, remove `base`.
+
+The included GitHub Actions workflow publishes `docs/dist` automatically. In the repository settings, set Pages source to **GitHub Actions**.

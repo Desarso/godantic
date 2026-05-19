@@ -1,0 +1,36 @@
+:root {
+  --sl-font: 'IBM Plex Sans', 'Aptos', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  --sl-color-accent-low: #132a21;
+  --sl-color-accent: #2ed18f;
+  --sl-color-accent-high: #b7f7d7;
+  --sl-color-white: #f8f3e7;
+  --sl-color-gray-1: #ece1cc;
+  --sl-color-gray-2: #cfc2aa;
+  --sl-color-gray-3: #9a8f7d;
+  --sl-color-gray-4: #5d564b;
+  --sl-color-gray-5: #383229;
+  --sl-color-gray-6: #241f19;
+  --sl-color-black: #15120e;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(46, 209, 143, 0.16), transparent 34rem),
+    linear-gradient(135deg, rgba(248, 243, 231, 0.04) 0 1px, transparent 1px 18px),
+    var(--sl-color-black);
+}
+
+.hero img {
+  filter: drop-shadow(0 24px 80px rgba(46, 209, 143, 0.22));
+}
+
+.card {
+  border-radius: 18px;
+  border-color: rgba(46, 209, 143, 0.2);
+  background: linear-gradient(180deg, rgba(248, 243, 231, 0.045), rgba(248, 243, 231, 0.015));
+}
+
+code {
+  border-radius: 0.35rem;
+}

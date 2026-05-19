@@ -1,0 +1,236 @@
+---
+title: API
+description: Main godantic packages, interfaces, constructors, sessions, stores, and tool contracts.
+---
+
+This page summarizes the public API you use most often when embedding `godantic` in a Go app.
+
+## Packages
+
+| Package | Purpose |
+| --- | --- |
+| `github.com/Desarso/godantic` | Agent constructors, model helpers, config builder, session re-exports. |
+| `github.com/Desarso/godantic/models` | Request, response, message, and tool declaration types. |
+| `github.com/Desarso/godantic/stores` | SQLite/Postgres stores and persistence interfaces. |
+| `github.com/Desarso/godantic/common_tools` | Built-in tools and tool declaration helpers. |
+| `github.com/Desarso/godantic/sessions` | HTTP and WebSocket session internals. |
+
+## Agent
+
+```go
+type Model interface {
+    Model_Request(
+        request models.Model_Request,
+        tools []models.FunctionDeclaration,
+        conversationHistory []stores.Message,
+    ) (models.Model_Response, error)
+
+    Stream_Model_Request(
+        request models.Model_Request,
+        tools []models.FunctionDeclaration,
+        conversationHistory []stores.Message,
+    ) (<-chan models.Model_Response, <-chan error)
+}
+```
+
+Create an agent:
+
+```go
+agent := godantic.Create_Agent(model, tools)
+```
+
+Run directly if you already have history:
+
+```go
+response, err := agent.Run(request, history)
+stream, errs := agent.Run_Stream(request, history)
+```
+
+Most apps should use a session instead so message persistence and tool result processing stay consistent.
+
+## Model Constructors
+
+```go
+godantic.NewGeminiModel(modelName)
+godantic.NewOpenRouterModel(modelName)
+godantic.NewGroqModel(modelName)
+godantic.NewCerebrasModel(modelName)
+godantic.NewAnthropicModel(modelName)
+```
+
+Option helpers are available for temperature, token limits, site metadata, custom base URLs, and provider-specific fields:
+
+```go
+godantic.NewOpenRouterModelWithOptions(model, temperature, maxTokens, siteURL, siteName)
+godantic.NewOpenRouterModelWithBaseURL(model, baseURL, apiKeyEnv, temperature, maxTokens)
+godantic.NewGroqModelWithOptions(model, temperature, maxTokens, systemPrompt)
+godantic.NewCerebrasModelWithOptions(model, temperature, maxTokens, systemPrompt, topP, seed)
+godantic.NewAnthropicModelWithOptions(model, temperature, maxTokens, systemPrompt)
+```
+
+## Requests
+
+```go
+type Model_Request struct {
+    User_Message  *User_Message  `json:"message,omitempty"`
+    Tool_Results  *[]Tool_Result `json:"tool_results,omitempty"`
+    Client_ID     string         `json:"client_id,omitempty"`
+    Input_Mode    string         `json:"input_mode,omitempty"`
+    Language_Code string         `json:"language_code,omitempty"`
+}
+```
+
+Create a text request:
+
+```go
+message := models.User_Message{
+    Role: "user",
+    Content: models.Content{Parts: []models.User_Part{{Text: "Hello"}}},
+}
+
+request := models.Model_Request{User_Message: &message}
+```
+
+Return tool results:
+
+```go
+request := models.Model_Request{
+    Tool_Results: &[]models.Tool_Result{{
+        Tool_ID: "call_123",
+        Tool_Name: "get_weather",
+        Tool_Output: `{"result":"Sunny"}`,
+    }},
+}
+```
+
+## HTTP Session
+
+```go
+session := godantic.NewHTTPSession(conversationID, &agent, store)
+```
+
+Common methods:
+
+```go
+session.RunSingleInteraction(userMessage)
+session.RunStreamInteraction(userMessage)
+session.RunSingleInteractionWithRequest(request)
+session.RunStreamInteractionWithRequest(request)
+session.RunSSEInteraction(userMessage, writer, ctx)
+session.RunSSEInteractionWithRequest(request, writer, ctx)
+session.GetChatHistory()
+```
+
+## WebSocket Session
+
+```go
+session := godantic.NewAgentSession(
+    sessionID,
+    userID,
+    conn,
+    &agent,
+    store,
+    memoryManager,
+)
+
+session.SetTraceStore(traceStore)
+err := session.RunInteraction(request)
+```
+
+Use WebSocket sessions when your UI needs live tool confirmation, frontend tool execution, trace events, or long-running interactive turns.
+
+## Stores
+
+```go
+store, err := stores.NewSQLiteStoreSimple("chat.sqlite")
+store, err := stores.NewPostgresStoreSimple(dsn)
+```
+
+Custom stores implement:
+
+```go
+type MessageStore interface {
+    SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error
+    SaveMessageWithUser(sessionID, userID, role, messageType string, parts interface{}, functionID string) error
+    FetchHistory(sessionID string, limit int) ([]Message, error)
+    CreateConversation(convoID, userID string) error
+    ListConversations() ([]string, error)
+    ListConversationsForUser(userID string) ([]ConversationInfo, error)
+    Connect() error
+    Close() error
+    Ping() error
+}
+```
+
+## Tools
+
+```go
+type FunctionDeclaration struct {
+    Name        string
+    Description string
+    Parameters  models.Parameters
+    Callable    interface{}
+}
+```
+
+Callable functions must return `(string, error)`.
+
+Supported callable shapes:
+
+```go
+func() (string, error)
+func(city string) (string, error)
+func(city string, limit int) (string, error)
+```
+
+For custom multi-argument tools, keep `Parameters.Required` in the same order as the Go function parameters.
+
+Execute a tool manually:
+
+```go
+resultJSON, err := agent.ExecuteTool("get_weather", map[string]interface{}{
+    "city": "Chicago",
+}, "conversation-1")
+```
+
+## Built-In Tool Declarations
+
+```go
+common_tools.DefaultTools()
+common_tools.WebSearchTool()
+common_tools.WebFetchTool()
+common_tools.ReadFileTool()
+common_tools.WriteFileTool()
+common_tools.EditFileTool()
+common_tools.ListDirectoryTool()
+common_tools.ShellExecTool()
+```
+
+Schema-backed functions can also be registered with:
+
+```go
+tools, err := godantic.Create_Tools([]interface{}{
+    common_tools.Brave_Search,
+    common_tools.Web_Fetch,
+    common_tools.Execute_TypeScript,
+})
+```
+
+`Create_Tools` reads embedded JSON schemas from `schemas/cached_schemas`, so it is best for functions whose schemas are shipped with `godantic`.
+
+## Config Builder
+
+```go
+config := godantic.NewWSConfig().
+    WithOpenRouter("openai/gpt-4o-mini").
+    WithSystemPrompt("You are concise and helpful.").
+    WithSQLiteStore("chat.sqlite").
+    WithTools([]interface{}{common_tools.Brave_Search}).
+    WithTemperature(0.2).
+    WithMaxTokens(2048)
+
+tools, err := godantic.Create_Tools(config.Tools)
+agent := godantic.Create_Agent_From_Config(config, tools)
+```
+
+Use the config builder when your app constructs agents from runtime configuration. Use direct constructors when explicit code is simpler.
