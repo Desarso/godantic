@@ -1,0 +1,40 @@
+---
+export function getStaticPaths() {
+  const slugs = [
+    'getting-started',
+    'architecture',
+    'models',
+    'sessions',
+    'tools',
+    'storage',
+    'examples',
+    'production',
+    'api',
+    'versioning',
+  ];
+
+  return slugs.map((slug) => ({
+    params: { slug },
+    props: { target: `/godantic/${slug}/` },
+  }));
+}
+
+const { target } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>Redirecting to <a href={target}>{target}</a>.</p>
+    <script is:inline define:vars={{ target }}>
+      window.location.replace(target);
+    </script>
+  </body>
+</html>
