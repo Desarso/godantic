@@ -1,0 +1,141 @@
+---
+title: Examples
+description: Complete patterns for common godantic integrations.
+---
+
+These examples show how the pieces fit together in real application code.
+
+## Minimal HTTP Handler
+
+```go
+func chatHandler(store stores.MessageStore, agent *godantic.Agent) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        conversationID := c.Param("conversationID")
+
+        var request models.Model_Request
+        if err := c.ShouldBindJSON(&request); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
+
+        session := godantic.NewHTTPSession(conversationID, agent, store)
+        response, err := session.RunSingleInteractionWithRequest(request)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.JSON(http.StatusOK, response)
+    }
+}
+```
+
+## SSE Endpoint
+
+```go
+type GinSSEWriter struct{ Context *gin.Context }
+
+func (w *GinSSEWriter) WriteSSE(data string) error {
+    w.Context.SSEvent("message", data)
+    w.Context.Writer.Flush()
+    return nil
+}
+
+func (w *GinSSEWriter) WriteSSEError(err error) error {
+    w.Context.SSEvent("error", err.Error())
+    w.Context.Writer.Flush()
+    return nil
+}
+
+func (w *GinSSEWriter) Flush() { w.Context.Writer.Flush() }
+
+func streamHandler(store stores.MessageStore, agent *godantic.Agent) gin.HandlerFunc {
+    return func(c *gin.Context) {
+        var request models.Model_Request
+        if err := c.ShouldBindJSON(&request); err != nil || request.User_Message == nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": "message required"})
+            return
+        }
+
+        c.Header("Content-Type", "text/event-stream")
+        c.Header("Cache-Control", "no-cache")
+
+        session := godantic.NewHTTPSession(c.Param("conversationID"), agent, store)
+        writer := &GinSSEWriter{Context: c}
+        if err := session.RunSSEInteractionWithRequest(request, writer, c.Request.Context()); err != nil {
+            _ = writer.WriteSSEError(err)
+        }
+    }
+}
+```
+
+## OpenRouter With Custom Tool
+
+```go
+func GetAccountStatus(accountID string) (string, error) {
+    return `{"status":"active","plan":"team"}`, nil
+}
+
+accountTool := models.FunctionDeclaration{
+    Name:        "get_account_status",
+    Description: "Get account status by account ID.",
+    Parameters: models.Parameters{
+        Type: "object",
+        Properties: map[string]interface{}{
+            "accountID": map[string]interface{}{
+                "type": "string",
+                "description": "Internal account ID",
+            },
+        },
+        Required: []string{"accountID"},
+    },
+    Callable: GetAccountStatus,
+}
+
+store, _ := stores.NewPostgresStoreSimple(os.Getenv("DATABASE_DSN"))
+model := godantic.NewOpenRouterModel("openai/gpt-4o-mini")
+agent := godantic.Create_Agent(model, []models.FunctionDeclaration{accountTool})
+```
+
+## Config-Driven Agent
+
+```go
+config := godantic.NewWSConfig().
+    WithOpenRouter("openai/gpt-4o-mini").
+    WithSystemPrompt("You are concise and careful.").
+    WithSQLiteStore("chat.sqlite").
+    WithTools([]interface{}{common_tools.Brave_Search}).
+    WithTemperature(0.2)
+
+tools, err := godantic.Create_Tools(config.Tools)
+if err != nil {
+    log.Fatal(err)
+}
+
+agent := godantic.Create_Agent_From_Config(config, tools)
+```
+
+## Custom Store Stub
+
+```go
+type MyStore struct{}
+
+func (s *MyStore) SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error {
+    return nil
+}
+
+func (s *MyStore) SaveMessageWithUser(sessionID, userID, role, messageType string, parts interface{}, functionID string) error {
+    return s.SaveMessage(sessionID, role, messageType, parts, functionID)
+}
+
+func (s *MyStore) FetchHistory(sessionID string, limit int) ([]stores.Message, error) {
+    return nil, nil
+}
+
+func (s *MyStore) CreateConversation(convoID, userID string) error { return nil }
+func (s *MyStore) ListConversations() ([]string, error) { return nil, nil }
+func (s *MyStore) ListConversationsForUser(userID string) ([]stores.ConversationInfo, error) { return nil, nil }
+func (s *MyStore) Connect() error { return nil }
+func (s *MyStore) Close() error { return nil }
+func (s *MyStore) Ping() error { return nil }
+```

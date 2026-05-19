@@ -3,24 +3,24 @@ title: godantic
 description: Build Go LLM agents with providers, tools, sessions, and durable chat history.
 template: splash
 hero:
-  tagline: A compact Go framework for production chat agents.
+  tagline: Latest docs for v0.x. Build Go-native LLM agents with models, tools, sessions, and durable history.
   image:
     alt: godantic mark
     file: ../../assets/godantic-mark.svg
   actions:
     - text: Get started
-      link: /getting-started/
+      link: /godantic/getting-started/
       icon: right-arrow
     - text: API guide
-      link: /api/
+      link: /godantic/api/
       variant: secondary
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-`godantic` gives Go apps a clear agent core: one model interface, typed tools, reusable sessions, and persistent chat history.
+`godantic` gives Go apps a clean agent core: one model interface, typed tools, reusable sessions, and persistent chat history.
 
-It stays out of your way. You choose the provider, storage backend, and transport. `godantic` handles the repeated pieces: model calls, streaming, tool execution, tool result feedback, WebSocket protocol plumbing, and history adaptation.
+It is for teams that want an assistant backend in Go without rewriting provider adapters, tool loops, streaming, WebSocket plumbing, and persistence for every app.
 
 <CardGrid>
   <Card title="Bring your model" icon="setting">
@@ -57,6 +57,18 @@ Use `godantic` when you want to build a Go-native assistant, support multiple pr
 
 It is especially useful for apps that need long-running WebSocket interactions, user-confirmed tool calls, trace persistence, or conversation history shared across providers.
 
-## Static Docs Deployment
+## Docs Map
 
-These docs are an Astro Starlight static site. GitHub Pages can serve the built `dist/` output directly. The included workflow builds from `docs/` and publishes `docs/dist` to GitHub Pages on pushes to `main`.
+- [Getting Started](/godantic/getting-started/) walks through a minimal Gemini + SQLite agent.
+- [Architecture](/godantic/architecture/) explains the moving pieces and how data flows.
+- [Models](/godantic/models/) explains providers, env vars, and custom model implementations.
+- [Sessions](/godantic/sessions/) covers HTTP, streaming, SSE, and WebSocket usage.
+- [Tools](/godantic/tools/) shows built-in tools, custom tools, and schema-backed registration.
+- [Storage](/godantic/storage/) covers SQLite, Postgres, and custom stores.
+- [Examples](/godantic/examples/) gives complete copyable patterns.
+- [Production](/godantic/production/) covers operational concerns for deployed apps.
+- [Versioning](/godantic/versioning/) describes tags, major docs policy, and release tooling.
+
+## Version Policy
+
+This site shows the latest docs for the current major line, `v0`. When `v1` exists, the root docs will track the latest stable major and older major docs can remain available by major path.

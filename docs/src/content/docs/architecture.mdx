@@ -1,0 +1,59 @@
+---
+title: Architecture
+description: How godantic connects models, tools, sessions, and storage.
+---
+
+`godantic` is built around a small set of boundaries. The goal is to keep model providers, transports, persistence, and tools replaceable.
+
+## Mental Model
+
+```text
+Client
+  -> Session
+    -> Store fetches history
+    -> Agent calls Model
+    -> Model may request tools
+    -> Agent executes approved tools
+    -> Store saves messages and tool results
+  -> Client receives text, stream chunks, traces, or tool events
+```
+
+## Main Components
+
+| Component | Responsibility |
+| --- | --- |
+| `Agent` | Holds a model, tool declarations, and optional memory. Delegates requests to the model and executes tools. |
+| `Model` | Provider adapter for Gemini, OpenRouter, Groq, Cerebras, Anthropic, or your own backend. |
+| `Session` | Application interaction loop. Handles history, persistence, streaming, SSE, or WebSocket protocol concerns. |
+| `MessageStore` | Durable conversation history. SQLite and Postgres are included. |
+| `FunctionDeclaration` | Tool schema plus Go callable. |
+
+## Request Flow
+
+1. Your app creates a `models.Model_Request` from a user message or tool result.
+2. The session saves incoming user content.
+3. The session fetches conversation history from the store.
+4. The agent calls the configured model with the request, tools, and history.
+5. The model returns text parts, function calls, or provider metadata.
+6. If tools are requested and approved, the agent executes the Go callable.
+7. Tool results are sent back to the model until a final response is produced.
+8. The session persists the final response and returns it to the app.
+
+## Why Sessions Exist
+
+You can call `agent.Run` directly, but sessions are what make an app reliable. They centralize history loading, message saving, tool feedback, streaming, and transport-specific behavior.
+
+Use direct agent calls for tests or low-level integrations. Use sessions for application endpoints.
+
+## Provider Independence
+
+Providers do not own your app state. The store keeps `godantic` messages, and each model adapter translates that history into the provider-specific request format at the edge.
+
+That means you can switch from Gemini to OpenRouter or Anthropic without migrating your conversation database.
+
+## Extension Points
+
+- Implement `Model` to add a provider.
+- Implement `MessageStore` to use another database.
+- Create `FunctionDeclaration` values to expose app-specific tools.
+- Use `WSConfig` if your app constructs agents from runtime config.

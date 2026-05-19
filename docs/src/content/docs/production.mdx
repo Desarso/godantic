@@ -1,0 +1,65 @@
+---
+title: Production
+description: Operational guidance for running godantic in a deployed assistant backend.
+---
+
+`godantic` is a library, not a hosted service. Production quality comes from how you wire providers, storage, authentication, tools, and transport timeouts around it.
+
+## Recommended Setup
+
+| Concern | Recommendation |
+| --- | --- |
+| Model credentials | Store provider keys in environment variables or your secret manager. |
+| Chat history | Use PostgreSQL or another shared `MessageStore` for multi-instance apps. |
+| Tool approval | Require confirmation for file writes, shell commands, external side effects, and admin APIs. |
+| Request lifetime | Use request contexts for HTTP/SSE so disconnects cancel work. |
+| WebSockets | Treat sessions as user-scoped and close them on fatal `AgentError`s. |
+| Logging | Scrub secrets from tool output and provider errors before logging. |
+
+## Tool Safety
+
+Tools are regular Go code. They can do anything your process can do. That is powerful and dangerous.
+
+Use a clear policy:
+
+- Read-only tools can often auto-run.
+- External writes should ask for user confirmation.
+- Shell execution should be restricted to trusted operators.
+- File operations should be sandboxed to an allowed workspace.
+- Provider credentials should never be returned in tool output.
+
+## Persistence
+
+For local development, SQLite is fine. For production, prefer Postgres if more than one process can handle the same user or conversation.
+
+```go
+store, err := stores.NewPostgresStoreSimple(os.Getenv("DATABASE_DSN"))
+if err != nil {
+    log.Fatal(err)
+}
+defer store.Close()
+```
+
+Run `store.Ping()` during startup or readiness checks.
+
+## Timeouts And Cancellation
+
+HTTP and SSE handlers should pass request contexts down to session methods when available. WebSocket sessions should close on fatal errors and client disconnects.
+
+Long-running tools should accept their own timeout or context wrapper at your application boundary.
+
+## Provider Failures
+
+Provider APIs fail in normal operation: rate limits, invalid requests, expired keys, model overload, and streaming disconnects.
+
+Handle errors at the session boundary and return useful messages to your UI. Keep the raw provider error in logs only if it does not contain user-sensitive content.
+
+## Observability
+
+For WebSocket sessions, attach a trace store when you want tool execution traces persisted.
+
+```go
+session.SetTraceStore(traceStore)
+```
+
+Store model/provider latency, tool latency, error type, and conversation ID in your app metrics. Avoid logging full prompts unless your privacy policy allows it.

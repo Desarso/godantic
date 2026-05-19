@@ -1,18 +1,52 @@
 # godantic
 
-`godantic` is a Go framework for building chat agents that talk to LLM providers, call typed tools, persist conversation history, and run over HTTP or WebSockets.
+[![Docs](https://img.shields.io/badge/docs-live-2ed18f)](https://desarso.github.io/godantic/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-f8f3e7)](LICENSE)
 
-It is intentionally small: bring a model, a store, and optional tools, then run an `Agent` through an `HTTPSession` or `AgentSession`.
+`godantic` is a small Go framework for building useful LLM agents without turning your app into a pile of provider glue.
+
+Bring a model, a message store, and optional tools. `godantic` gives you the agent loop, streaming, tool calls, history persistence, and HTTP/WebSocket session helpers.
+
+Documentation: [https://desarso.github.io/godantic/](https://desarso.github.io/godantic/)
+
+Current version line: `v0.x`. See [Versioning](https://desarso.github.io/godantic/versioning/) for the release policy.
+
+## Why godantic
+
+Most assistant backends end up solving the same problems: provider adapters, function calling, streaming, tool result feedback, chat history, WebSocket plumbing, and persistence. `godantic` keeps those concerns in one Go module with simple interfaces you can replace when your app needs something custom.
 
 ## Features
 
-- One `Model` interface across Gemini, OpenRouter, Groq, Cerebras, and Anthropic.
-- Non-streaming and streaming model calls.
-- HTTP, SSE, and WebSocket session helpers.
-- SQLite and PostgreSQL conversation stores through a `MessageStore` interface.
-- Tool calling with JSON-schema declarations and Go function execution.
+- One `Model` interface across Gemini, OpenRouter, Groq, Cerebras, Anthropic, and custom providers.
+- Request/response, streaming, SSE, and WebSocket session helpers.
+- Tool calling with JSON-schema declarations backed by ordinary Go functions.
+- SQLite and PostgreSQL conversation stores through a replaceable `MessageStore` interface.
 - Built-in tools for search, web fetch, file operations, shell execution, image analysis, workflows, skill files, TypeScript execution, and image generation.
-- Optional execution trace persistence for WebSocket sessions.
+- Optional trace persistence for WebSocket tool execution.
+
+## Docs
+
+- [Getting Started](https://desarso.github.io/godantic/getting-started/)
+- [Architecture](https://desarso.github.io/godantic/architecture/)
+- [API Guide](https://desarso.github.io/godantic/api/)
+- [Models](https://desarso.github.io/godantic/models/)
+- [Tools](https://desarso.github.io/godantic/tools/)
+- [Sessions](https://desarso.github.io/godantic/sessions/)
+- [Storage](https://desarso.github.io/godantic/storage/)
+- [Production](https://desarso.github.io/godantic/production/)
+- [Versioning](https://desarso.github.io/godantic/versioning/)
+
+## Releases
+
+The version is stored in `VERSION`. Release helpers live in the root `Makefile`:
+
+```bash
+make test
+make docs-build
+make release
+```
+
+`make release` validates the tree, creates a `vX.Y.Z` tag, pushes `main` and the tag, and creates a GitHub release using `gh`.
 
 ## Install
 

@@ -1,0 +1,127 @@
+---
+title: Storage
+description: Persist conversations with SQLite, PostgreSQL, or your own MessageStore.
+---
+
+Storage is deliberately behind an interface. Sessions save and fetch conversation state through `stores.MessageStore`; model providers do not own persistence.
+
+## What Gets Stored
+
+`godantic` stores conversation messages as ordered rows. Each row has:
+
+- `ConversationID`: thread/session identifier.
+- `Sequence`: order within the conversation.
+- `Role`: usually `user` or `model`.
+- `Type`: message type such as `user_message`, `model_message`, `function_call`, or `function_response`.
+- `PartsJSON`: JSON-encoded message parts.
+- `FunctionID`: optional ID linking function calls/results.
+
+This is provider-independent history. Provider adapters convert it into their own API format when making requests.
+
+## SQLite
+
+SQLite is the easiest store for local development, tests, demos, and single-process deployments.
+
+```go
+store, err := stores.NewSQLiteStoreSimple("chat.sqlite")
+if err != nil {
+    log.Fatal(err)
+}
+defer store.Close()
+```
+
+The store auto-migrates the `Conversation` and `Message` tables on connect.
+
+Use `:memory:` for tests if you do not need persistence after the process exits.
+
+```go
+store, err := stores.NewSQLiteStoreSimple(":memory:")
+```
+
+## PostgreSQL
+
+Postgres is better for production services, multiple app instances, shared history, and backups.
+
+```go
+dsn := "host=localhost user=app password=secret dbname=chat port=5432 sslmode=disable"
+store, err := stores.NewPostgresStoreSimple(dsn)
+if err != nil {
+    log.Fatal(err)
+}
+defer store.Close()
+```
+
+The config builder can construct one from parts:
+
+```go
+config := godantic.NewWSConfig().WithPostgresStore(
+    "localhost",
+    "app",
+    "secret",
+    "chat",
+    5432,
+)
+```
+
+## MessageStore Interface
+
+Implement this interface for DynamoDB, Redis, Firestore, S3-backed logs, or your own database.
+
+```go
+type MessageStore interface {
+    SaveMessage(sessionID, role, messageType string, parts interface{}, functionID string) error
+    SaveMessageWithUser(sessionID, userID, role, messageType string, parts interface{}, functionID string) error
+    FetchHistory(sessionID string, limit int) ([]Message, error)
+
+    CreateConversation(convoID, userID string) error
+    ListConversations() ([]string, error)
+    ListConversationsForUser(userID string) ([]ConversationInfo, error)
+
+    Connect() error
+    Close() error
+    Ping() error
+}
+```
+
+Minimum behavior:
+
+- `SaveMessage` must append messages in order.
+- `FetchHistory` must return messages ordered by sequence.
+- `limit == 0` should mean no explicit limit.
+- `Ping` should fail when the backing service is unavailable.
+
+## Conversation IDs
+
+You provide the conversation ID when creating a session:
+
+```go
+session := godantic.NewHTTPSession("conversation-1", &agent, store)
+```
+
+Use stable IDs for persistent threads. Use generated IDs for one-off chats.
+
+If your app is multi-user, use `SaveMessageWithUser` or the WebSocket session constructor so conversations are associated with users.
+
+## Health Checks
+
+Call `Ping` at startup or in readiness checks.
+
+```go
+if err := store.Ping(); err != nil {
+    return fmt.Errorf("message store unavailable: %w", err)
+}
+```
+
+## Choosing A Store
+
+| Situation | Store |
+| --- | --- |
+| Unit tests | SQLite `:memory:` or custom fake store |
+| Local app | SQLite file |
+| Single small deployment | SQLite can work, but back it up |
+| Multiple app replicas | PostgreSQL |
+| Strict compliance needs | Custom store with your audit/retention controls |
+
+## Migration Notes
+
+The included stores use GORM auto-migration. That is convenient but may not be enough for tightly controlled production schema management. If your organization requires explicit migrations, implement `MessageStore` against your own migration-managed tables.

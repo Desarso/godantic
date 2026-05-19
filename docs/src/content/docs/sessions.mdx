@@ -1,0 +1,187 @@
+---
+title: Sessions
+description: Use HTTP, streaming, SSE, and WebSocket session helpers correctly.
+---
+
+Sessions turn an `Agent` into an app interaction. They are responsible for history, persistence, transport behavior, and tool feedback loops.
+
+Use direct `agent.Run` calls only when you are manually managing history. For normal applications, use sessions.
+
+## Choosing A Session
+
+| Need | Use |
+| --- | --- |
+| Simple API route | `HTTPSession.RunSingleInteractionWithRequest` |
+| CLI or background job | `HTTPSession.RunSingleInteraction` |
+| Token-by-token UI updates | `RunStreamInteraction` or SSE |
+| Browser EventSource | `RunSSEInteractionWithRequest` |
+| Full chat UI with tool approval/traces | `AgentSession` WebSocket |
+
+## HTTP Request/Response
+
+```go
+session := godantic.NewHTTPSession("conversation-1", &agent, store)
+
+response, err := session.RunSingleInteraction(models.User_Message{
+    Role: "user",
+    Content: models.Content{Parts: []models.User_Part{{Text: "Hello"}}},
+})
+```
+
+Most HTTP APIs receive `models.Model_Request` as JSON:
+
+```go
+var request models.Model_Request
+if err := c.ShouldBindJSON(&request); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+}
+
+session := godantic.NewHTTPSession(c.Param("conversationID"), &agent, store)
+response, err := session.RunSingleInteractionWithRequest(request)
+```
+
+## Streaming Channels
+
+Streaming returns model chunks as they arrive. Each chunk is a `models.Model_Response` with one or more parts.
+
+```go
+stream, errs := session.RunStreamInteraction(userMessage)
+
+for stream != nil || errs != nil {
+    select {
+    case chunk, ok := <-stream:
+        if !ok {
+            stream = nil
+            continue
+        }
+        for _, part := range chunk.Parts {
+            if part.Text != nil {
+                fmt.Print(*part.Text)
+            }
+        }
+    case err, ok := <-errs:
+        if ok && err != nil {
+            return err
+        }
+        errs = nil
+    }
+}
+```
+
+## Server-Sent Events
+
+SSE is a good fit for browser streaming when you do not need bidirectional WebSocket behavior.
+
+```go
+type GinSSEWriter struct{ Context *gin.Context }
+
+func (w *GinSSEWriter) WriteSSE(data string) error {
+    w.Context.SSEvent("message", data)
+    w.Context.Writer.Flush()
+    return nil
+}
+
+func (w *GinSSEWriter) WriteSSEError(err error) error {
+    w.Context.SSEvent("error", err.Error())
+    w.Context.Writer.Flush()
+    return nil
+}
+
+func (w *GinSSEWriter) Flush() { w.Context.Writer.Flush() }
+```
+
+Run with request cancellation:
+
+```go
+err := session.RunSSEInteractionWithRequest(
+    request,
+    &GinSSEWriter{Context: c},
+    c.Request.Context(),
+)
+```
+
+## WebSocket Sessions
+
+Use WebSockets when your frontend needs interactive behavior beyond one-way streaming.
+
+WebSocket sessions support:
+
+- Model streaming.
+- Tool call and tool result messages.
+- Frontend action requests.
+- Execution trace events.
+- Optional memory injection.
+- Optional ElevenLabs TTS handling.
+
+```go
+session := godantic.NewAgentSession(
+    sessionID,
+    userID,
+    conn,
+    &agent,
+    store,
+    memoryManager,
+)
+
+if traceStore != nil {
+    session.SetTraceStore(traceStore)
+}
+
+err := session.RunInteraction(request)
+```
+
+## Memory Interface
+
+`memoryManager` can be nil. If you pass one, it must implement:
+
+```go
+type MemoryManager interface {
+    AddMemory(content string, metadata map[string]interface{}) error
+    RetrieveMemories(queryText string, limit int) ([]string, error)
+}
+```
+
+Use memory for cross-conversation facts or user preferences. Use the message store for the current conversation transcript.
+
+## Flow Logging
+
+WebSocket sessions can report high-level flow events through `FlowLogger`.
+
+```go
+type FlowLogger interface {
+    LogUserMessage(sessionID string, text string)
+    LogAgentMessage(sessionID string, text string)
+    LogToolCall(sessionID string, toolName string, args map[string]interface{})
+    LogToolResult(sessionID string, toolName string, resultPreview string)
+}
+```
+
+This is useful for debugging without logging every raw provider payload.
+
+## Error Handling
+
+WebSocket sessions can return `*godantic.AgentError`.
+
+```go
+if err := session.RunInteraction(request); err != nil {
+    if agentErr, ok := err.(*godantic.AgentError); ok {
+        if agentErr.Fatal {
+            return err // close connection
+        }
+        // report and continue
+    }
+}
+```
+
+Fatal errors mean the connection/session should end. Non-fatal errors can be surfaced to the user while keeping the session alive.
+
+## Session Gotchas
+
+| Gotcha | Fix |
+| --- | --- |
+| Duplicate messages | Do not save the same user message outside the session unless you own the full loop. |
+| Missing history | Use the same conversation/session ID for the same thread. |
+| Streaming never ends | Always handle both stream and error channel closure. |
+| Client disconnects keep work running | Pass request contexts into SSE methods. |
+| WebSocket writes race | Use the provided `WebSocketWriter`; it serializes writes. |

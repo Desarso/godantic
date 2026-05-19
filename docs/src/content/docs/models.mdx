@@ -1,0 +1,192 @@
+---
+title: Models
+description: Configure providers, choose models, and implement custom backends.
+---
+
+Models are provider adapters. They translate `godantic` requests, history, and tool declarations into the request format required by a specific LLM API.
+
+The rest of your app should mostly ignore provider details. Sessions and stores use `godantic` types; only the model adapter knows how Gemini, OpenRouter, Groq, Cerebras, or Anthropic want messages represented.
+
+## The Model Interface
+
+```go
+type Model interface {
+    Model_Request(
+        request models.Model_Request,
+        tools []models.FunctionDeclaration,
+        conversationHistory []stores.Message,
+    ) (models.Model_Response, error)
+
+    Stream_Model_Request(
+        request models.Model_Request,
+        tools []models.FunctionDeclaration,
+        conversationHistory []stores.Message,
+    ) (<-chan models.Model_Response, <-chan error)
+}
+```
+
+Every built-in provider implements this interface. Your own provider can implement it too.
+
+## Built-In Providers
+
+| Provider | Constructor | Default model | Env var |
+| --- | --- | --- | --- |
+| Gemini | `godantic.NewGeminiModel` | `gemini-2.0-flash` | `GEMINI_API_KEY` |
+| OpenRouter | `godantic.NewOpenRouterModel` | `openai/gpt-4o-mini` | `OPENROUTER_API_KEY` |
+| Groq | `godantic.NewGroqModel` | `llama-3.1-70b-versatile` | `GROQ_API_KEY` |
+| Cerebras | `godantic.NewCerebrasModel` | `llama-3.3-70b` | `CEREBRAS_API_KEY` |
+| Anthropic | `godantic.NewAnthropicModel` | `claude-sonnet-4-20250514` | `ANTHROPIC_API_KEY` |
+
+Example:
+
+```go
+model := godantic.NewOpenRouterModel("openai/gpt-4o-mini")
+agent := godantic.Create_Agent(model, tools)
+```
+
+## Provider Selection
+
+| Need | Good fit |
+| --- | --- |
+| Google-native API and Gemini models | Gemini |
+| Many models behind one endpoint | OpenRouter |
+| Low-latency supported open models | Groq |
+| Cerebras-hosted low-latency models | Cerebras |
+| Claude Messages API behavior | Anthropic |
+| Internal gateway or self-hosted model | Custom `Model` or OpenRouter-compatible base URL |
+
+## Options Constructors
+
+Use options constructors when you need temperature, token limits, or prompts.
+
+```go
+temperature := 0.2
+maxTokens := 2048
+
+model := godantic.NewAnthropicModelWithOptions(
+    "claude-sonnet-4-20250514",
+    &temperature,
+    &maxTokens,
+    "You are concise and careful.",
+)
+```
+
+OpenRouter supports site metadata:
+
+```go
+model := godantic.NewOpenRouterModelWithOptions(
+    "anthropic/claude-sonnet-4",
+    &temperature,
+    &maxTokens,
+    "https://example.com",
+    "Example App",
+)
+```
+
+OpenRouter-compatible gateways can use a custom base URL and API key env var:
+
+```go
+model := godantic.NewOpenRouterModelWithBaseURL(
+    "my-model",
+    "https://gateway.example.com/v1/chat/completions",
+    "MY_GATEWAY_API_KEY",
+    nil,
+    nil,
+)
+```
+
+## History Adaptation
+
+Different providers support different content shapes. For example, one provider may support a media part that another provider cannot represent exactly.
+
+Provider adapters convert stored `godantic` history into the closest provider format and may emit `models.HistoryWarning` values when content is adapted or skipped.
+
+```go
+response, err := agent.Run(request, history)
+for _, warning := range response.Warnings {
+    log.Printf("history warning: %s: %s", warning.Type, warning.Message)
+}
+```
+
+## Tool Calling
+
+Tools are passed into every model request:
+
+```go
+response, err := model.Model_Request(request, tools, history)
+```
+
+Provider adapters translate `models.FunctionDeclaration` into each provider's function/tool declaration format. The returned `models.Model_Response` may contain text parts and function-call parts.
+
+```go
+for _, part := range response.Parts {
+    if part.FunctionCall != nil {
+        fmt.Println("model requested", part.FunctionCall.Name)
+    }
+}
+```
+
+## Custom Model
+
+Implementing a custom model is useful for:
+
+- An internal model gateway.
+- A self-hosted inference server.
+- Tests that should not call real providers.
+- A provider not yet included in `godantic`.
+
+```go
+type StaticModel struct{}
+
+func (m *StaticModel) Model_Request(
+    request models.Model_Request,
+    tools []models.FunctionDeclaration,
+    history []stores.Message,
+) (models.Model_Response, error) {
+    text := "hello from a custom model"
+    return models.Model_Response{Parts: []models.Model_Part{{Text: &text}}}, nil
+}
+
+func (m *StaticModel) Stream_Model_Request(
+    request models.Model_Request,
+    tools []models.FunctionDeclaration,
+    history []stores.Message,
+) (<-chan models.Model_Response, <-chan error) {
+    responses := make(chan models.Model_Response, 1)
+    errors := make(chan error, 1)
+
+    go func() {
+        defer close(responses)
+        defer close(errors)
+
+        response, err := m.Model_Request(request, tools, history)
+        if err != nil {
+            errors <- err
+            return
+        }
+        responses <- response
+    }()
+
+    return responses, errors
+}
+```
+
+Use it normally:
+
+```go
+agent := godantic.Create_Agent(&StaticModel{}, tools)
+```
+
+## Testing With A Fake Model
+
+Fake models make session tests deterministic.
+
+```go
+type FakeModel struct{ Text string }
+
+func (m *FakeModel) Model_Request(models.Model_Request, []models.FunctionDeclaration, []stores.Message) (models.Model_Response, error) {
+    return models.Model_Response{Parts: []models.Model_Part{{Text: &m.Text}}}, nil
+}
+```
+
+Use SQLite `:memory:` or a custom in-memory store for fast tests.

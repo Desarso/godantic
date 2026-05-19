@@ -1,0 +1,76 @@
+---
+title: Versioning
+description: Release policy, docs versioning, and Makefile release commands.
+---
+
+`godantic` uses semantic version tags for Go module releases.
+
+The current version line is `v0.x`, which means the public API can still change while the project settles. Breaking changes should still be called out in the changelog.
+
+## Docs Policy
+
+The root docs site shows the latest documentation for the active major line.
+
+Current docs:
+
+```text
+https://desarso.github.io/godantic/ -> latest v0 docs
+```
+
+When `v1` exists, the root site should track the latest stable major. Older major versions can be published under major paths such as:
+
+```text
+/godantic/v0/
+/godantic/v1/
+```
+
+Until then, the site is intentionally labeled as latest `v0.x` docs.
+
+## Version Source
+
+The repository has a `VERSION` file:
+
+```text
+0.1.0
+```
+
+Release tags add the Go module `v` prefix:
+
+```text
+v0.1.0
+```
+
+## Release Commands
+
+The root `Makefile` includes release helpers.
+
+```bash
+make test
+make docs-build
+make release-tag
+make release
+```
+
+`make release` runs Go tests, builds docs, validates the working tree, tags the current commit, pushes `main`, pushes the tag, and creates a GitHub release using `gh`.
+
+## Manual Release Flow
+
+1. Update `VERSION`.
+2. Update `CHANGELOG.md`.
+3. Commit the changes.
+4. Run `make release`.
+5. Confirm the GitHub release and docs deployment.
+
+## Go Module Consumers
+
+Users can install a tagged release with:
+
+```bash
+go get github.com/Desarso/godantic@v0.1.0
+```
+
+For the newest commit on `main`:
+
+```bash
+go get github.com/Desarso/godantic@main
+```

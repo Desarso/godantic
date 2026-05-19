@@ -1,0 +1,195 @@
+---
+title: Tools
+description: Design safe, useful Go tools for model function calling.
+---
+
+Tools are how the model reaches out of text generation and does useful work. In `godantic`, a tool is a JSON-schema declaration plus a Go function.
+
+The model sees the schema. Your Go process executes the callable.
+
+## Tool Anatomy
+
+```go
+type FunctionDeclaration struct {
+    Name        string
+    Description string
+    Parameters  models.Parameters
+    Callable    interface{}
+}
+```
+
+| Field | What it does |
+| --- | --- |
+| `Name` | Stable name the model uses in a function call. Prefer snake case. |
+| `Description` | The model's main clue for when to use the tool. Be specific. |
+| `Parameters` | JSON schema object describing arguments. |
+| `Callable` | Go function that returns `(string, error)`. |
+
+## Callable Signatures
+
+Supported shapes:
+
+```go
+func() (string, error)
+func(city string) (string, error)
+func(query string, limit int) (string, error)
+```
+
+For multi-argument functions, `Parameters.Required` must match the Go parameter order.
+
+```go
+func SearchTickets(query string, limit int) (string, error) {
+    return "[]", nil
+}
+
+tool := models.FunctionDeclaration{
+    Name: "search_tickets",
+    Description: "Search support tickets by text query.",
+    Parameters: models.Parameters{
+        Type: "object",
+        Properties: map[string]interface{}{
+            "query": map[string]interface{}{"type": "string"},
+            "limit": map[string]interface{}{"type": "integer"},
+        },
+        Required: []string{"query", "limit"},
+    },
+    Callable: SearchTickets,
+}
+```
+
+## Writing Good Tool Descriptions
+
+Bad descriptions make models guess. Good descriptions say when the tool should be used and what it returns.
+
+Weak:
+
+```text
+Get user.
+```
+
+Better:
+
+```text
+Look up an internal user profile by email address. Returns JSON with id, name, department, and account status.
+```
+
+Include constraints in the parameter descriptions:
+
+```go
+"email": map[string]interface{}{
+    "type": "string",
+    "description": "User email address. Must be a full email, not a display name.",
+}
+```
+
+## Return Values
+
+Return strings. JSON strings are usually best because the model can reliably inspect fields.
+
+```go
+func LookupUser(email string) (string, error) {
+    return `{"id":"u_123","name":"Ada","active":true}`, nil
+}
+```
+
+If the function returns an error, `godantic` still creates a tool result payload containing the error. This lets the model explain or recover.
+
+## Full Custom Tool Example
+
+```go
+func LookupCustomer(email string) (string, error) {
+    if email == "" {
+        return "", fmt.Errorf("email is required")
+    }
+    return `{"name":"Ada Lovelace","plan":"enterprise"}`, nil
+}
+
+customerTool := models.FunctionDeclaration{
+    Name:        "lookup_customer",
+    Description: "Look up a customer by email address. Returns name and subscription plan as JSON.",
+    Parameters: models.Parameters{
+        Type: "object",
+        Properties: map[string]interface{}{
+            "email": map[string]interface{}{
+                "type":        "string",
+                "description": "Customer email address",
+            },
+        },
+        Required: []string{"email"},
+    },
+    Callable: LookupCustomer,
+}
+
+agent := godantic.Create_Agent(model, []models.FunctionDeclaration{customerTool})
+```
+
+## Built-In Tool Declarations
+
+`common_tools.DefaultTools()` returns a local-agent toolbox:
+
+| Declaration | Callable | Purpose |
+| --- | --- | --- |
+| `WebSearchTool()` | `Brave_Search` | Search the web with Brave. |
+| `WebFetchTool()` | `Web_Fetch` | Fetch and extract readable URL content. |
+| `ReadFileTool()` | `ReadFile` | Read a file with offset/limit support. |
+| `WriteFileTool()` | `WriteFile` | Write a file and create parents. |
+| `EditFileTool()` | `EditFile` | Exact text replacement. |
+| `ListDirectoryTool()` | `ListDirectory` | List files and directories. |
+| `ShellExecTool()` | `ShellExec` | Execute shell commands with timeout. |
+| `ImageAnalysisTool()` | `AnalyzeImage` | Analyze images. |
+
+```go
+tools := common_tools.DefaultTools()
+agent := godantic.Create_Agent(model, tools)
+```
+
+## Schema-Backed Built-Ins
+
+Some built-ins have generated schemas in `schemas/cached_schemas`. Register them with `Create_Tools`:
+
+```go
+tools, err := godantic.Create_Tools([]interface{}{
+    common_tools.Brave_Search,
+    common_tools.Web_Fetch,
+    common_tools.Execute_TypeScript,
+})
+```
+
+Use `Create_Tools` for functions shipped with `godantic`. For app-specific tools, directly create `models.FunctionDeclaration` so the schema is explicit in your code.
+
+## Approval And Safety
+
+Current `Tool_Approver` auto-approves tools. Treat that as development behavior. In a product, decide which tools can run without confirmation.
+
+Suggested policy:
+
+| Tool type | Approval policy |
+| --- | --- |
+| Pure read-only lookup | Auto-approve after validation. |
+| Web search/fetch | Usually auto-approve. |
+| File read | Restrict to allowed workspace, optionally auto-approve. |
+| File write/edit | Ask the user unless the action is clearly scoped. |
+| Shell execution | Require trusted operator or explicit approval. |
+| External side effects | Require approval and audit logging. |
+
+## Manual Execution
+
+You can execute a tool directly through the agent:
+
+```go
+resultJSON, err := agent.ExecuteTool("lookup_customer", map[string]interface{}{
+    "email": "ada@example.com",
+}, "conversation-1")
+```
+
+This is useful in tests or custom tool loops.
+
+## Debug Checklist
+
+| Symptom | Check |
+| --- | --- |
+| Tool never called | Improve `Description`; make the user request require external data. |
+| Missing argument error | Ensure `Required` names match schema property names. |
+| Wrong argument order | For multi-arg callables, order `Required` to match function params. |
+| Tool output too large | Return a summarized JSON payload instead of raw data. |
+| Model loops on tool calls | Make the tool return final enough information and add system instructions about when to stop. |

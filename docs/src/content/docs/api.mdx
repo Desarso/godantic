@@ -1,9 +1,9 @@
 ---
-title: API
-description: Main godantic packages, interfaces, constructors, sessions, stores, and tool contracts.
+title: API Reference
+description: Public packages, constructors, interfaces, and core types.
 ---
 
-This page summarizes the public API you use most often when embedding `godantic` in a Go app.
+This page is the compact reference. If you are learning the library, start with [Getting Started](/godantic/getting-started/) and [Architecture](/godantic/architecture/) first.
 
 ## Packages
 
@@ -13,62 +13,47 @@ This page summarizes the public API you use most often when embedding `godantic`
 | `github.com/Desarso/godantic/models` | Request, response, message, and tool declaration types. |
 | `github.com/Desarso/godantic/stores` | SQLite/Postgres stores and persistence interfaces. |
 | `github.com/Desarso/godantic/common_tools` | Built-in tools and tool declaration helpers. |
-| `github.com/Desarso/godantic/sessions` | HTTP and WebSocket session internals. |
+| `github.com/Desarso/godantic/sessions` | HTTP and WebSocket session internals and interfaces. |
 
-## Agent
+## Agent Constructors
+
+```go
+func Create_Agent(model Model, tools []models.FunctionDeclaration, memory ...MemoryManager) Agent
+func Create_Agent_From_Config(config *WSConfig, tools []models.FunctionDeclaration, memory ...MemoryManager) Agent
+```
+
+`Create_Agent` is the direct path. `Create_Agent_From_Config` is useful when model/provider configuration is loaded dynamically.
+
+## Model Interface
 
 ```go
 type Model interface {
-    Model_Request(
-        request models.Model_Request,
-        tools []models.FunctionDeclaration,
-        conversationHistory []stores.Message,
-    ) (models.Model_Response, error)
-
-    Stream_Model_Request(
-        request models.Model_Request,
-        tools []models.FunctionDeclaration,
-        conversationHistory []stores.Message,
-    ) (<-chan models.Model_Response, <-chan error)
+    Model_Request(models.Model_Request, []models.FunctionDeclaration, []stores.Message) (models.Model_Response, error)
+    Stream_Model_Request(models.Model_Request, []models.FunctionDeclaration, []stores.Message) (<-chan models.Model_Response, <-chan error)
 }
 ```
-
-Create an agent:
-
-```go
-agent := godantic.Create_Agent(model, tools)
-```
-
-Run directly if you already have history:
-
-```go
-response, err := agent.Run(request, history)
-stream, errs := agent.Run_Stream(request, history)
-```
-
-Most apps should use a session instead so message persistence and tool result processing stay consistent.
 
 ## Model Constructors
 
 ```go
-godantic.NewGeminiModel(modelName)
-godantic.NewOpenRouterModel(modelName)
-godantic.NewGroqModel(modelName)
-godantic.NewCerebrasModel(modelName)
-godantic.NewAnthropicModel(modelName)
+NewGeminiModel(modelName string)
+NewOpenRouterModel(modelName string)
+NewGroqModel(modelName string)
+NewCerebrasModel(modelName string)
+NewAnthropicModel(modelName string)
 ```
 
-Option helpers are available for temperature, token limits, site metadata, custom base URLs, and provider-specific fields:
+With options:
 
 ```go
-godantic.NewOpenRouterModelWithOptions(model, temperature, maxTokens, siteURL, siteName)
-godantic.NewOpenRouterModelWithBaseURL(model, baseURL, apiKeyEnv, temperature, maxTokens)
-godantic.NewGroqModelWithOptions(model, temperature, maxTokens, systemPrompt)
-godantic.NewCerebrasModelWithOptions(model, temperature, maxTokens, systemPrompt, topP, seed)
-godantic.NewAnthropicModelWithOptions(model, temperature, maxTokens, systemPrompt)
+NewAnthropicModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string)
+NewOpenRouterModelWithOptions(modelName string, temperature *float64, maxTokens *int, siteURL, siteName string)
+NewOpenRouterModelWithBaseURL(modelName, baseURL, apiKeyEnv string, temperature *float64, maxTokens *int)
+NewGroqModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string)
+NewCerebrasModelWithOptions(modelName string, temperature *float64, maxTokens *int, systemPrompt string, topP *float64, seed *int)
 ```
 
-## Requests
+## Request Types
 
 ```go
 type Model_Request struct {
@@ -80,73 +65,91 @@ type Model_Request struct {
 }
 ```
 
-Create a text request:
-
 ```go
-message := models.User_Message{
-    Role: "user",
-    Content: models.Content{Parts: []models.User_Part{{Text: "Hello"}}},
+type User_Message struct {
+    Role    string  `json:"role"`
+    Content Content `json:"content"`
 }
 
-request := models.Model_Request{User_Message: &message}
+type User_Part struct {
+    Text             string            `json:"text,omitempty"`
+    InlineData       *InlineData       `json:"inline_data,omitempty"`
+    ImageData        *ImageData        `json:"image_data,omitempty"`
+    FileData         *FileData         `json:"file_data,omitempty"`
+    FunctionResponse *FunctionResponse `json:"function_response,omitempty"`
+}
 ```
 
-Return tool results:
+## Response Types
 
 ```go
-request := models.Model_Request{
-    Tool_Results: &[]models.Tool_Result{{
-        Tool_ID: "call_123",
-        Tool_Name: "get_weather",
-        Tool_Output: `{"result":"Sunny"}`,
-    }},
+type Model_Response struct {
+    Parts    []Model_Part     `json:"parts"`
+    Warnings []HistoryWarning `json:"warnings,omitempty"`
+}
+
+type Model_Part struct {
+    Text         *string       `json:"text,omitempty"`
+    FunctionCall *FunctionCall `json:"functionCall,omitempty"`
+    Reasoning    *string       `json:"reasoning,omitempty"`
+}
+
+type FunctionCall struct {
+    ID               string                 `json:"id,omitempty"`
+    Name             string                 `json:"name"`
+    Args             map[string]interface{} `json:"args"`
+    ThoughtSignature string                 `json:"thoughtSignature,omitempty"`
 }
 ```
 
 ## HTTP Session
 
 ```go
-session := godantic.NewHTTPSession(conversationID, &agent, store)
+func NewHTTPSession(conversationID string, agent *Agent, store stores.MessageStore) *HTTPSession
 ```
 
 Common methods:
 
 ```go
-session.RunSingleInteraction(userMessage)
-session.RunStreamInteraction(userMessage)
-session.RunSingleInteractionWithRequest(request)
-session.RunStreamInteractionWithRequest(request)
-session.RunSSEInteraction(userMessage, writer, ctx)
-session.RunSSEInteractionWithRequest(request, writer, ctx)
-session.GetChatHistory()
+RunSingleInteraction(userMessage models.User_Message) (models.Model_Response, error)
+RunStreamInteraction(userMessage models.User_Message) (<-chan models.Model_Response, <-chan error)
+RunSingleInteractionWithRequest(request models.Model_Request) (models.Model_Response, error)
+RunStreamInteractionWithRequest(request models.Model_Request) (<-chan models.Model_Response, <-chan error)
+RunSSEInteraction(userMessage models.User_Message, writer SSEWriter, ctx context.Context) error
+RunSSEInteractionWithRequest(request models.Model_Request, writer SSEWriter, ctx context.Context) error
+GetChatHistory() ([]models.ChatMessageResponse, error)
 ```
 
 ## WebSocket Session
 
 ```go
-session := godantic.NewAgentSession(
-    sessionID,
-    userID,
-    conn,
-    &agent,
-    store,
-    memoryManager,
-)
-
-session.SetTraceStore(traceStore)
-err := session.RunInteraction(request)
+func NewAgentSession(
+    sessionID string,
+    userID string,
+    conn *websocket.Conn,
+    agent *Agent,
+    store stores.MessageStore,
+    memory MemoryManager,
+) *AgentSession
 ```
 
-Use WebSocket sessions when your UI needs live tool confirmation, frontend tool execution, trace events, or long-running interactive turns.
+Common methods:
+
+```go
+RunInteraction(req models.Model_Request) error
+RunInteractionWithContext(ctx context.Context, req models.Model_Request) error
+SetTraceStore(traceStore stores.TraceStore)
+```
 
 ## Stores
 
 ```go
-store, err := stores.NewSQLiteStoreSimple("chat.sqlite")
-store, err := stores.NewPostgresStoreSimple(dsn)
+stores.NewSQLiteStoreSimple(dbPath string)
+stores.NewPostgresStoreSimple(dsn string)
+stores.NewStore(config *stores.StoreConfig)
 ```
 
-Custom stores implement:
+Store interface:
 
 ```go
 type MessageStore interface {
@@ -168,32 +171,26 @@ type MessageStore interface {
 type FunctionDeclaration struct {
     Name        string
     Description string
-    Parameters  models.Parameters
+    Parameters  Parameters
     Callable    interface{}
 }
 ```
 
-Callable functions must return `(string, error)`.
-
-Supported callable shapes:
+Tool registration:
 
 ```go
-func() (string, error)
-func(city string) (string, error)
-func(city string, limit int) (string, error)
+Create_Tool(fn interface{}) (models.FunctionDeclaration, error)
+Create_Tools(fns []interface{}) ([]models.FunctionDeclaration, error)
 ```
 
-For custom multi-argument tools, keep `Parameters.Required` in the same order as the Go function parameters.
-
-Execute a tool manually:
+Direct execution:
 
 ```go
-resultJSON, err := agent.ExecuteTool("get_weather", map[string]interface{}{
-    "city": "Chicago",
-}, "conversation-1")
+agent.ExecuteTool(functionName string, functionCallArgs map[string]interface{}, sessionID string) (string, error)
+agent.ApproveTool(name string, args map[string]interface{}) (bool, error)
 ```
 
-## Built-In Tool Declarations
+Built-in declaration helpers:
 
 ```go
 common_tools.DefaultTools()
@@ -206,18 +203,6 @@ common_tools.ListDirectoryTool()
 common_tools.ShellExecTool()
 ```
 
-Schema-backed functions can also be registered with:
-
-```go
-tools, err := godantic.Create_Tools([]interface{}{
-    common_tools.Brave_Search,
-    common_tools.Web_Fetch,
-    common_tools.Execute_TypeScript,
-})
-```
-
-`Create_Tools` reads embedded JSON schemas from `schemas/cached_schemas`, so it is best for functions whose schemas are shipped with `godantic`.
-
 ## Config Builder
 
 ```go
@@ -228,9 +213,15 @@ config := godantic.NewWSConfig().
     WithTools([]interface{}{common_tools.Brave_Search}).
     WithTemperature(0.2).
     WithMaxTokens(2048)
-
-tools, err := godantic.Create_Tools(config.Tools)
-agent := godantic.Create_Agent_From_Config(config, tools)
 ```
 
-Use the config builder when your app constructs agents from runtime configuration. Use direct constructors when explicit code is simpler.
+Provider helpers:
+
+```go
+WithProvider(provider ModelProvider)
+WithOpenRouter(model string)
+WithGroq(model string)
+WithCerebras(model string)
+WithAnthropic(model string)
+WithModelName(modelName string)
+```

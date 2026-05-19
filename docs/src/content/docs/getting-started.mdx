@@ -1,25 +1,26 @@
 ---
 title: Getting Started
-description: Install godantic, configure a provider, create an agent, and run a chat session.
+description: Build your first godantic agent from zero to working chat.
 ---
 
-This guide gets a minimal `godantic` chat running with Gemini and SQLite. The same structure works with OpenRouter, Groq, Cerebras, and Anthropic.
+This guide builds a minimal assistant that stores history in SQLite and calls Gemini. After it works, you can swap the model, add tools, or move to WebSockets without changing the overall shape.
 
-## Install
+## What You Will Build
 
-```bash
-go get github.com/Desarso/godantic
-```
+You will create:
 
-If you are developing against a local checkout, add a replace directive in your app's `go.mod`:
+- A SQLite `MessageStore` for conversation history.
+- A Gemini-backed `Agent`.
+- An `HTTPSession` that runs a single user message.
+- A custom Go tool the model can call.
 
-```go
-replace github.com/Desarso/godantic => ./godantic
-```
+## Prerequisites
 
-## Set An API Key
+- Go 1.24 or newer.
+- A provider API key.
+- Basic familiarity with Go modules.
 
-For Gemini:
+For this page, set Gemini:
 
 ```bash
 export GEMINI_API_KEY=...
@@ -35,7 +36,26 @@ Provider env vars:
 | Cerebras | `CEREBRAS_API_KEY` |
 | Anthropic | `ANTHROPIC_API_KEY` |
 
-## Create A Session
+## Install
+
+Create a new app:
+
+```bash
+mkdir godantic-demo
+cd godantic-demo
+go mod init example.com/godantic-demo
+go get github.com/Desarso/godantic
+```
+
+If you are working from a local checkout of this repository, use a `replace` directive instead:
+
+```go
+replace github.com/Desarso/godantic => ./godantic
+```
+
+## Minimal Chat
+
+Create `main.go`:
 
 ```go
 package main
@@ -54,6 +74,7 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
+    defer store.Close()
 
     agent := godantic.Create_Agent(
         godantic.NewGeminiModel("gemini-2.0-flash"),
@@ -82,15 +103,47 @@ func main() {
 }
 ```
 
-## Add A Tool
+Run it:
 
-Tools are `models.FunctionDeclaration` values with a Go function as `Callable`.
+```bash
+go run .
+```
+
+You should see a short text response. A local `chat.sqlite` file is created and contains the conversation history.
+
+## What Happened
+
+The important line is:
+
+```go
+response, err := session.RunSingleInteraction(message)
+```
+
+That one call does several things:
+
+1. Saves the user message.
+2. Fetches existing conversation history.
+3. Calls the configured model.
+4. Saves the model response.
+5. Returns provider-independent response parts.
+
+The provider is only one piece. The same session pattern works with OpenRouter, Groq, Cerebras, Anthropic, or your own `Model` implementation.
+
+## Add Your First Tool
+
+Tools are Go functions that the model can request. Each tool has a JSON schema so the model knows how to call it.
+
+Add this function:
 
 ```go
 func GetWeather(city string) (string, error) {
-    return "Sunny in " + city, nil
+    return `{"forecast":"sunny","city":"` + city + `"}`, nil
 }
+```
 
+Create a declaration:
+
+```go
 weatherTool := models.FunctionDeclaration{
     Name:        "get_weather",
     Description: "Get the current weather for a city.",
@@ -98,32 +151,53 @@ weatherTool := models.FunctionDeclaration{
         Type: "object",
         Properties: map[string]interface{}{
             "city": map[string]interface{}{
-                "type": "string",
-                "description": "City name",
+                "type":        "string",
+                "description": "City name, for example Toronto or Chicago",
             },
         },
         Required: []string{"city"},
     },
     Callable: GetWeather,
 }
+```
 
+Pass it to the agent:
+
+```go
 agent := godantic.Create_Agent(
     godantic.NewGeminiModel("gemini-2.0-flash"),
     []models.FunctionDeclaration{weatherTool},
 )
 ```
 
-For built-in tools, import `common_tools`:
+Ask a tool-friendly question:
 
 ```go
-import "github.com/Desarso/godantic/common_tools"
-
-tools := common_tools.DefaultTools()
+Text: "What is the weather in Toronto? Use tools if useful.",
 ```
 
-Some built-ins require env vars. `Brave_Search` uses `BRAVE_API_KEY`, and `Search` uses `PERPLEXITY_API_KEY`.
+Depending on the provider and prompt, the model may call `get_weather`, receive the result, and produce a final answer.
 
-## Stream Responses
+## Switch Providers
+
+Only the model constructor changes.
+
+```go
+agent := godantic.Create_Agent(
+    godantic.NewOpenRouterModel("openai/gpt-4o-mini"),
+    []models.FunctionDeclaration{weatherTool},
+)
+```
+
+Then set:
+
+```bash
+export OPENROUTER_API_KEY=...
+```
+
+## Use Streaming
+
+Streaming returns two channels: one for chunks and one for errors.
 
 ```go
 stream, errs := session.RunStreamInteraction(message)
@@ -135,8 +209,11 @@ for stream != nil || errs != nil {
             stream = nil
             continue
         }
-        // Send chunk to the client.
-        _ = chunk
+        for _, part := range chunk.Parts {
+            if part.Text != nil {
+                fmt.Print(*part.Text)
+            }
+        }
     case err, ok := <-errs:
         if ok && err != nil {
             log.Fatal(err)
@@ -146,25 +223,21 @@ for stream != nil || errs != nil {
 }
 ```
 
-## Deploy These Docs To GitHub Pages
+Use streaming when your UI should start rendering before the full response is complete.
 
-The docs site lives in `docs/` and builds to static HTML:
+## Common Mistakes
 
-```bash
-cd docs
-npm install
-npm run build
-```
+| Problem | Fix |
+| --- | --- |
+| Empty provider response | Confirm the provider API key is set in the process environment. |
+| Tool not called | Make the tool description specific and ask the model to use tools when useful. |
+| Multi-argument tool receives wrong values | Keep `Parameters.Required` in the same order as the Go function parameters. |
+| History looks wrong | Use sessions instead of direct `agent.Run` unless you are manually handling history. |
+| SQLite locked under load | Use Postgres for multi-process or high-concurrency deployments. |
 
-The static site is emitted to `docs/dist/`. For GitHub Pages under `desarso.github.io/godantic`, `astro.config.mjs` sets:
+## Next Steps
 
-```js
-export default defineConfig({
-  site: 'https://desarso.github.io',
-  base: '/godantic',
-});
-```
-
-If the repo becomes a user site like `desarso.github.io`, remove `base`.
-
-The included GitHub Actions workflow publishes `docs/dist` automatically. In the repository settings, set Pages source to **GitHub Actions**.
+- Read [Architecture](/godantic/architecture/) to understand the data flow.
+- Read [Models](/godantic/models/) to choose or implement a provider.
+- Read [Tools](/godantic/tools/) to design safe app tools.
+- Read [Sessions](/godantic/sessions/) before building HTTP, SSE, or WebSocket endpoints.
