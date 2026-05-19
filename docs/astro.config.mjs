@@ -16,27 +16,27 @@ export default defineConfig({
         {
           label: 'Start Here',
           items: [
-            { label: 'Overview', link: '/godantic/' },
-            { label: 'Getting Started', link: '/godantic/getting-started/' },
-            { label: 'Architecture', link: '/godantic/architecture/' },
+            { label: 'Overview', link: '/' },
+            { label: 'Getting Started', slug: 'getting-started' },
+            { label: 'Architecture', slug: 'architecture' },
           ],
         },
         {
           label: 'Guides',
           items: [
-            { label: 'Models', link: '/godantic/models/' },
-            { label: 'Sessions', link: '/godantic/sessions/' },
-            { label: 'Tools', link: '/godantic/tools/' },
-            { label: 'Storage', link: '/godantic/storage/' },
-            { label: 'Examples', link: '/godantic/examples/' },
-            { label: 'Production', link: '/godantic/production/' },
+            { label: 'Models', slug: 'models' },
+            { label: 'Sessions', slug: 'sessions' },
+            { label: 'Tools', slug: 'tools' },
+            { label: 'Storage', slug: 'storage' },
+            { label: 'Examples', slug: 'examples' },
+            { label: 'Production', slug: 'production' },
           ],
         },
         {
           label: 'Reference',
           items: [
-            { label: 'API', link: '/godantic/api/' },
-            { label: 'Versioning', link: '/godantic/versioning/' },
+            { label: 'API', slug: 'api' },
+            { label: 'Versioning', slug: 'versioning' },
           ],
         },
       ],
