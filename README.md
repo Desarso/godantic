@@ -1,7 +1,7 @@
 # godantic
 
 [![Docs](https://img.shields.io/badge/docs-live-2ed18f)](https://desarso.github.io/godantic/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-f8f3e7)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-f8f3e7)](LICENSE)
 
 `godantic` is a small Go framework for building useful LLM agents without turning your app into a pile of provider glue.
 
@@ -362,4 +362,4 @@ go test ./...
 
 ## License
 
-MIT. See `LICENSE`.
+Apache-2.0. See `LICENSE`.
