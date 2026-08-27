@@ -19,6 +19,7 @@ import (
 const (
 	OpenRouterBaseURL = "https://openrouter.ai/api/v1/chat/completions"
 	DefaultModel      = "openai/gpt-4o-mini"
+	DefaultPDFEngine  = "cloudflare-ai"
 )
 
 var (
@@ -49,6 +50,8 @@ type OpenRouter_Model struct {
 	BaseURL         string                                 // Optional: Custom API base URL (defaults to OpenRouter)
 	APIKeyEnv       string                                 // Optional: Environment variable name for API key (defaults to OPENROUTER_API_KEY)
 	SupportsVision  bool                                   // Whether the model supports image/vision input
+	SupportsPDF     bool                                   // Whether PDFs can be processed through OpenRouter's file parser
+	PDFEngine       string                                 // Optional OpenRouter PDF engine (defaults to OPENROUTER_PDF_ENGINE or cloudflare-ai)
 	WarningCallback func(warnings []models.HistoryWarning) `json:"-"` // Called when history is adapted with warnings
 }
 
@@ -465,10 +468,50 @@ func (o *OpenRouter_Model) historyOrMessageContainsImages(conversationHistory []
 	return false
 }
 
+// historyOrMessageContainsPDFs checks if the conversation history or current message contains a PDF.
+func (o *OpenRouter_Model) historyOrMessageContainsPDFs(conversationHistory []stores.Message, message models.User_Message) bool {
+	containsPDF := func(parts []models.User_Part) bool {
+		for _, part := range parts {
+			if part.InlineData != nil && isPDFMimeType(part.InlineData.MimeType) {
+				return true
+			}
+			if part.FileData != nil && isPDFMimeType(part.FileData.MimeType) {
+				return true
+			}
+		}
+		return false
+	}
+
+	if containsPDF(message.Content.Parts) {
+		return true
+	}
+	for _, histMsg := range conversationHistory {
+		if histMsg.Role != "user" || histMsg.PartsJSON == "" {
+			continue
+		}
+		var userParts []models.User_Part
+		if err := json.Unmarshal([]byte(histMsg.PartsJSON), &userParts); err == nil && containsPDF(userParts) {
+			return true
+		}
+	}
+	return false
+}
+
+func (o *OpenRouter_Model) pdfEngine() string {
+	if engine := strings.TrimSpace(o.PDFEngine); engine != "" {
+		return engine
+	}
+	if engine := strings.TrimSpace(os.Getenv("OPENROUTER_PDF_ENGINE")); engine != "" {
+		return engine
+	}
+	return DefaultPDFEngine
+}
+
 // createOpenRouterRequest builds the request body for OpenRouter API
 func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.User_Message, tools []models.FunctionDeclaration, toolResults *[]models.Tool_Result, conversationHistory []stores.Message, stream bool) (OpenRouterRequest, error) {
 	messages := []Message{}
 	var allWarnings []models.HistoryWarning
+	hasPDFs := o.historyOrMessageContainsPDFs(conversationHistory, message)
 
 	// Check if we need to strip images (model doesn't support vision)
 	stripImages := !o.SupportsVision
@@ -482,6 +525,13 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 				Details: "Images in conversation history were removed because the selected model doesn't support image input",
 			})
 		}
+	}
+	if hasPDFs && !o.SupportsPDF {
+		allWarnings = append(allWarnings, models.HistoryWarning{
+			Type:    "pdfs_stripped",
+			Message: "This model doesn't support PDFs",
+			Details: "PDFs in conversation history were removed because the selected model doesn't support PDF input",
+		})
 	}
 
 	// Add system prompt as first message if provided
@@ -548,6 +598,12 @@ func (o *OpenRouter_Model) createOpenRouterRequest(model string, message models.
 		Model:    model,
 		Messages: messages,
 		Stream:   stream,
+	}
+	if hasPDFs && o.SupportsPDF {
+		request.Plugins = []Plugin{{
+			ID:  "file-parser",
+			PDF: &PDFPlugin{Engine: o.pdfEngine()},
+		}}
 	}
 
 	// Add tools if provided
@@ -714,14 +770,29 @@ func (o *OpenRouter_Model) buildContentFromUserPartsWithWarnings(parts []models.
 			})
 		}
 
-		// Handle inline data (base64 images)
+		// Handle inline data (base64 images and PDFs)
 		if part.InlineData != nil {
-			// Skip images if model doesn't support vision
-			if stripImages {
-				continue
-			}
-			// Check if it's a supported image type
-			if isImageMimeType(part.InlineData.MimeType) {
+			if isPDFMimeType(part.InlineData.MimeType) {
+				if !o.SupportsPDF {
+					warnings = append(warnings, models.HistoryWarning{
+						Type:    "unsupported_content",
+						Message: "PDF not supported by this model",
+						Details: "The PDF was skipped because the selected model does not support PDF input",
+					})
+					continue
+				}
+				hasMultimodal = true
+				contentParts = append(contentParts, ContentPart{
+					Type: "file",
+					File: &File{
+						Filename: "document.pdf",
+						FileData: fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data),
+					},
+				})
+			} else if isImageMimeType(part.InlineData.MimeType) {
+				if stripImages {
+					continue
+				}
 				hasMultimodal = true
 				dataURL := fmt.Sprintf("data:%s;base64,%s", part.InlineData.MimeType, part.InlineData.Data)
 				contentParts = append(contentParts, ContentPart{
@@ -740,15 +811,30 @@ func (o *OpenRouter_Model) buildContentFromUserPartsWithWarnings(parts []models.
 			}
 		}
 
-		// Handle file data (URLs) - only send images, skip PDFs and other files
+		// Handle file data URLs for images and PDFs.
 		if part.FileData != nil {
-			// Skip images if model doesn't support vision
-			if stripImages && isImageMimeType(part.FileData.MimeType) {
-				continue
-			}
 			if part.FileData.FileUrl != "" {
-				// Check if it's an image type that OpenRouter/providers support
-				if isImageMimeType(part.FileData.MimeType) {
+				if isPDFMimeType(part.FileData.MimeType) {
+					if !o.SupportsPDF {
+						warnings = append(warnings, models.HistoryWarning{
+							Type:    "unsupported_content",
+							Message: "PDF not supported by this model",
+							Details: "The PDF was skipped because the selected model does not support PDF input",
+						})
+						continue
+					}
+					hasMultimodal = true
+					contentParts = append(contentParts, ContentPart{
+						Type: "file",
+						File: &File{
+							Filename: "document.pdf",
+							FileData: part.FileData.FileUrl,
+						},
+					})
+				} else if isImageMimeType(part.FileData.MimeType) {
+					if stripImages {
+						continue
+					}
 					hasMultimodal = true
 					contentParts = append(contentParts, ContentPart{
 						Type: "image_url",
@@ -757,12 +843,12 @@ func (o *OpenRouter_Model) buildContentFromUserPartsWithWarnings(parts []models.
 						},
 					})
 				} else {
-					// Non-image file (PDF, etc.) - skip with warning
+					// Other file types are not supported by the OpenRouter chat format used here.
 					log.Printf("Warning: Skipping non-image file in history (mime: %s)", part.FileData.MimeType)
 					warnings = append(warnings, models.HistoryWarning{
 						Type:    "unsupported_content",
 						Message: "File type not supported by this model",
-						Details: fmt.Sprintf("Only images are supported, skipping %s file", part.FileData.MimeType),
+						Details: fmt.Sprintf("Only images and PDFs are supported, skipping %s file", part.FileData.MimeType),
 					})
 				}
 			} else if part.FileData.GoogleUri != nil && *part.FileData.GoogleUri != "" {
@@ -833,6 +919,10 @@ func isImageMimeType(mimeType string) bool {
 	default:
 		return false
 	}
+}
+
+func isPDFMimeType(mimeType string) bool {
+	return strings.EqualFold(strings.TrimSpace(mimeType), "application/pdf")
 }
 
 // buildContentFromUserParts builds message content from user parts (legacy wrapper)

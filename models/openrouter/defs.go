@@ -11,10 +11,20 @@ type OpenRouterRequest struct {
 	Messages    []Message   `json:"messages"`
 	Tools       []Tool      `json:"tools,omitempty"`
 	ToolChoice  interface{} `json:"tool_choice,omitempty"` // "auto", "none", or specific tool
+	Plugins     []Plugin    `json:"plugins,omitempty"`
 	Stream      bool        `json:"stream,omitempty"`
 	MaxTokens   *int        `json:"max_tokens,omitempty"`
 	Temperature *float64    `json:"temperature,omitempty"`
 	TopP        *float64    `json:"top_p,omitempty"`
+}
+
+type Plugin struct {
+	ID  string     `json:"id"`
+	PDF *PDFPlugin `json:"pdf,omitempty"`
+}
+
+type PDFPlugin struct {
+	Engine string `json:"engine"`
 }
 
 type Message struct {
@@ -32,6 +42,12 @@ type ContentPart struct {
 	Type     string    `json:"type"` // "text" or "image_url"
 	Text     string    `json:"text,omitempty"`
 	ImageURL *ImageURL `json:"image_url,omitempty"`
+	File     *File     `json:"file,omitempty"`
+}
+
+type File struct {
+	Filename string `json:"filename,omitempty"`
+	FileData string `json:"file_data"`
 }
 
 type ImageURL struct {
