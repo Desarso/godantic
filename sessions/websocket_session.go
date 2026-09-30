@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -265,6 +266,7 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 					return nil, &AgentError{Message: "Client disconnected", Fatal: false}
 				}
 				as.Logger.Printf("Error writing stream chunk: %v", err)
+				as.fireErrorHook("ws_error", "Error writing stream chunk: "+err.Error(), true)
 				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
 			}
 
@@ -294,6 +296,7 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 					return nil, &AgentError{Message: "Client disconnected", Fatal: false}
 				}
 				as.Logger.Printf("Error writing stream chunk: %v", err)
+				as.fireErrorHook("ws_error", "Error writing stream chunk: "+err.Error(), true)
 				return nil, &AgentError{Message: "Error writing stream chunk", Fatal: true}
 			}
 
@@ -308,6 +311,9 @@ func (as *AgentSession) processStream(ctx context.Context, resChan <-chan models
 		case streamErr, ok := <-errChan:
 			if ok && streamErr != nil {
 				as.Logger.Printf("Stream error: %v", streamErr)
+				if ctx.Err() == nil && !errors.Is(streamErr, context.Canceled) {
+					as.fireErrorHook("provider_error", streamErr.Error(), false)
+				}
 				as.Writer.WriteError("Agent stream error: " + streamErr.Error())
 				return nil, &AgentError{Message: "Agent stream error", Fatal: false}
 			}
@@ -819,6 +825,23 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 		}
 	}
 
+	// Notify observers (e.g. error tracking) with a structured classification.
+	if as.ToolResultHook != nil {
+		isErr, errMsg := ClassifyToolResult(result, err)
+		as.fireToolResultHook(ToolResultEvent{
+			SessionID:    as.SessionID,
+			UserID:       as.UserID,
+			ToolCallID:   fc.ID,
+			ToolName:     fc.Name,
+			Args:         fc.Args,
+			Result:       result,
+			Err:          err,
+			IsError:      isErr,
+			ErrorMessage: errMsg,
+			Duration:     time.Since(startTime),
+		})
+	}
+
 	// Log tool result
 	if as.FlowLogger != nil {
 		preview := result
@@ -1285,6 +1308,7 @@ func (as *AgentSession) sendToolResult(fc functionCallInfo, toolResultJSON strin
 // sendError sends an error message and returns an AgentError
 func (as *AgentSession) sendError(message string, fatal bool) error {
 	as.Logger.Printf("Error: %s (fatal: %v)", message, fatal)
+	as.fireErrorHook("ws_error", message, fatal)
 	as.Writer.WriteError(message)
 	return &AgentError{Message: message, Fatal: fatal}
 }

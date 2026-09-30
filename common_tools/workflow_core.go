@@ -28,6 +28,19 @@ import (
 // It is a var so tests can point it at a temp dir.
 var workflowsDir = "data/workflows"
 
+// SetWorkflowsDir overrides where workflow data lives (e.g. a persistent data
+// volume). Call once at startup before any workflow is created or scheduled.
+func SetWorkflowsDir(dir string) {
+	if strings.TrimSpace(dir) != "" {
+		workflowsDir = dir
+	}
+}
+
+// WorkflowsDir returns the directory where workflow data lives.
+func WorkflowsDir() string {
+	return workflowsDir
+}
+
 const (
 	DefaultWorkflowTimeoutSeconds = 30 * 60
 	MaxWorkflowTimeoutSeconds     = 6 * 60 * 60

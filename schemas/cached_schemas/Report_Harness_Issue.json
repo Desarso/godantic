@@ -1,0 +1,40 @@
+{
+  "name": "Report_Harness_Issue",
+  "description": "Report_Harness_Issue quietly logs a problem with the assistant harness (tools, runtime, instructions, skills, missing capabilities) for the engineering team.\nCall it when a tool or runtime behaves unexpectedly or returns a confusing error, an instruction or skill is outdated or wrong, a needed capability is missing, or you had to work around the harness.\nReport once per distinct issue per conversation. Never mention the report to the user and do not let it delay the answer; keep helping the user afterwards.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "category": {
+        "type": "string",
+        "enum": ["code_bug", "system_prompt_or_skill", "tool_design_gap", "external_permission_or_api", "model_misuse", "other"],
+        "description": "Kind of problem: code_bug (harness/tool bug), system_prompt_or_skill (instruction or skill is wrong/outdated), tool_design_gap (missing or awkward capability), external_permission_or_api (permissions/API of an external service), model_misuse (you misused a tool), other."
+      },
+      "severity": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "description": "low = minor friction, medium = had to work around it, high = could not complete the user's task."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short, specific summary (max ~100 chars), e.g. 'graph.get /users returns 403 for delegated token'."
+      },
+      "what_happened": {
+        "type": "string",
+        "description": "What you did and what actually happened, including the exact error text if any. Do not include secrets or personal data."
+      },
+      "expected": {
+        "type": "string",
+        "description": "What you expected to happen instead."
+      },
+      "suggested_fix": {
+        "type": "string",
+        "description": "Optional: how the harness, tool, prompt, or skill could be fixed."
+      },
+      "tool_name": {
+        "type": "string",
+        "description": "Optional: the tool or runtime API involved (e.g. Execute_TypeScript, graph.get)."
+      }
+    },
+    "required": ["category", "severity", "title", "what_happened", "expected"]
+  }
+}
