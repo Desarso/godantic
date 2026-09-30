@@ -281,6 +281,14 @@ type AgentSession struct {
 	ConsultantEngine     ConsultantEngine     // Optional: for AI model consultation (Consult_Model tool)
 	RequestEnv           map[string]string    // Optional: per-request env passed to TypeScript tools
 
+	// ToolResultHook (optional) is called synchronously after every tool call with
+	// the result and a structured error classification. Keep it fast/non-blocking;
+	// panics are recovered.
+	ToolResultHook func(ToolResultEvent)
+	// ErrorHook (optional) is called when the session reports an error to the
+	// client (model/provider stream errors, transport/session failures).
+	ErrorHook func(SessionErrorEvent)
+
 	// ConsultantTakeoverFunc is called for takeover-mode consultations.
 	// The session layer sets this to a closure that has access to buildAgent, tools, etc.
 	// Signature: func(ctx context.Context, goal, whatTried, contextInfo, specificAsk string) (string, error)

@@ -11,6 +11,8 @@ package common_tools
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -43,6 +45,28 @@ func IsWorkflowTool(name string) bool { return workflowToolNames[name] }
 func ExecuteWorkflowToolAs(actor WorkflowActor, name string, args map[string]interface{}) (result string, handled bool, err error) {
 	if !IsWorkflowTool(name) {
 		return "", false, nil
+	}
+	// Do not coerce objects or numbers into required workflow arguments.
+	required := []string{"workflow_id"}
+	switch name {
+	case "List_Workflows":
+		required = nil
+	case "Create_Workflow":
+		required = []string{"name", "code"}
+	case "Schedule_Workflow":
+		required = []string{"workflow_id", "schedule_type", "schedule_value"}
+	case "Patch_Workflow":
+		required = []string{"workflow_id", "find"}
+	}
+	for _, key := range required {
+		value, ok := args[key].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			hint := "Provide the required argument as a nonempty string."
+			if key == "workflow_id" {
+				hint = `Use the exact ID returned by Create_Workflow or List_Workflows, e.g. {"workflow_id":"<returned-id>"}. This error does not establish workflow completion.`
+			}
+			return "", true, fmt.Errorf("%s requires a nonempty string %s. %s", name, key, hint)
+		}
 	}
 	t := workflowTools{actor: actor}
 	id := argString(args, "workflow_id")
@@ -123,6 +147,9 @@ func Edit_Workflow(workflow_id string, code string, name string) (string, error)
 // Returns the workflow ID and a URL that can be used to view the workflow
 // The workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills
 // Unlike Execute_TypeScript, workflows run in the background with a 30 minute default timeout
+// Return {ok, complete, requested, processed, verified, skipped, failed, unknown} after awaiting and verifying all work
+// Return {ok:false,error:"reason"} or throw on failure. A normal return alone only proves execution finished
+// URLs may be relative to the current deployment
 // IMPORTANT: Always present the returned URL to the user as a clickable markdown link, e.g. [View Workflow](url)
 func Create_Workflow(name string, code string) (string, error) {
 	return workflowTools{actor: SystemWorkflowActor}.create(name, code)
@@ -132,12 +159,15 @@ func Create_Workflow(name string, code string) (string, error) {
 // The workflow runs as a separate process and does not block
 // Use Get_Workflow_Status to check if it's still running
 // Use Get_Workflow_Logs to view the execution logs
+// Starting a workflow does not establish task success. Check the status, persisted result and logs
 func Run_Workflow(workflow_id string) (string, error) {
 	return workflowTools{actor: SystemWorkflowActor}.run(workflow_id)
 }
 
 // Get_Workflow_Status returns the current status of a workflow
 // Status can be: "pending", "running", "completed", or "failed"
+// Returns the persisted result and task_success when reported. completed alone does not prove business success
+// If the ID is missing, use List_Workflows and select the matching returned ID
 func Get_Workflow_Status(workflow_id string) (string, error) {
 	return workflowTools{actor: SystemWorkflowActor}.status(workflow_id)
 }
@@ -217,7 +247,7 @@ func (t workflowTools) authorizeManage(id string) (*WorkflowMetadata, error) {
 
 func (t workflowTools) authorizeWith(id string, check func(string, WorkflowActor) (*WorkflowMetadata, error)) (*WorkflowMetadata, error) {
 	if id == "" {
-		return nil, fmt.Errorf("workflow_id cannot be empty")
+		return nil, fmt.Errorf("workflow_id cannot be empty. Use the exact ID returned by Create_Workflow or List_Workflows; then call Get_Workflow_Status({\"workflow_id\":\"<returned-id>\"}). This error does not establish workflow completion")
 	}
 	meta, err := check(id, t.actor)
 	if errors.Is(err, ErrWorkflowForbidden) {
@@ -270,10 +300,21 @@ func (t workflowTools) create(name, code string) (string, error) {
 }
 
 func getFrontendURL() string {
-	if frontendURL := strings.TrimRight(os.Getenv("FRONTEND_URL"), "/"); frontendURL != "" {
-		return frontendURL
+	for _, key := range []string{"FRONTEND_URL", "PUBLIC_BASE_URL"} {
+		base := strings.TrimRight(strings.TrimSpace(os.Getenv(key)), "/")
+		u, err := url.Parse(base)
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+			continue
+		}
+		host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+		ip := net.ParseIP(host)
+		if host == "localhost" || strings.HasSuffix(host, ".localhost") || (ip != nil && (ip.IsLoopback() || ip.IsUnspecified())) {
+			continue
+		}
+		return base
 	}
-	return "http://localhost:3000"
+	// A relative link opens on the user's current deployment, never their localhost.
+	return ""
 }
 
 func (t workflowTools) run(id string) (string, error) {
@@ -315,6 +356,14 @@ func (t workflowTools) status(id string) (string, error) {
 	}
 	if d.Error != "" {
 		sb.WriteString(fmt.Sprintf("Error: %s\n", d.Error))
+	}
+	if len(d.Result) > 0 && string(d.Result) != "null" {
+		sb.WriteString(fmt.Sprintf("Result: %s\n", d.Result))
+	}
+	if d.TaskSuccess != nil {
+		sb.WriteString(fmt.Sprintf("Task success reported by script: %t\n", *d.TaskSuccess))
+	} else if d.Status == "completed" {
+		sb.WriteString("Execution completed; task success is unverified. Inspect Get_Workflow_Logs and verify the requested results before claiming completion.\n")
 	}
 	sb.WriteString(fmt.Sprintf("Timeout: %ds\n", d.TimeoutSeconds))
 	return sb.String(), nil

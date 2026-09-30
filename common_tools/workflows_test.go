@@ -1,6 +1,7 @@
 package common_tools
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -349,4 +350,86 @@ func TestWorkflowCanManageLegacyIsAdminOnly(t *testing.T) {
 	if (WorkflowActor{UID: "u2"}).CanManage(owned) {
 		t.Fatal("other users must not change someone else's workflow")
 	}
+}
+
+func TestWorkflowPublicURL(t *testing.T) {
+	for _, tc := range []struct{ frontend, public, want string }{
+		{"", "", ""},
+		{"https://assistant.example.com/", "https://other.example.com", "https://assistant.example.com"},
+		{"", "https://public.example.com/app/", "https://public.example.com/app"},
+		{"http://localhost:3000", "", ""},
+		{"http://127.0.0.1:3000", "https://public.example.com", "https://public.example.com"},
+		{"http://[::1]:3000", "", ""},
+		{"http://0.0.0.0:3000", "", ""},
+		{"http://LOCALHOST.:3000", "", ""},
+		{"javascript:alert(1)", "", ""},
+		{"https://user:pass@example.com", "", ""},
+		{"https://example.com?x=y", "", ""},
+	} {
+		t.Run(tc.frontend+tc.public, func(t *testing.T) {
+			t.Setenv("FRONTEND_URL", tc.frontend)
+			t.Setenv("PUBLIC_BASE_URL", tc.public)
+			if got := getFrontendURL(); got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+	useTempWorkflowsDir(t)
+	t.Setenv("FRONTEND_URL", "")
+	t.Setenv("PUBLIC_BASE_URL", "")
+	output, err := Create_Workflow("relative", "return {ok:true}")
+	if err != nil || !strings.Contains(output, "URL: /workflows/") || strings.Contains(output, "localhost") {
+		t.Fatalf("%s %v", output, err)
+	}
+}
+
+func TestWorkflowRequiredArguments(t *testing.T) {
+	for _, args := range []map[string]interface{}{nil, {}, {"workflow_id": " "}, {"workflow_id": 123}, {"workflow_id": map[string]string{"id": "abc"}}} {
+		output, handled, err := ExecuteWorkflowToolAs(SystemWorkflowActor, "Get_Workflow_Status", args)
+		if !handled || output != "" || err == nil || !strings.Contains(err.Error(), "List_Workflows") || !strings.Contains(err.Error(), "does not establish workflow completion") {
+			t.Fatalf("args=%v output=%q err=%v", args, output, err)
+		}
+	}
+	if _, _, err := ExecuteWorkflowToolAs(SystemWorkflowActor, "Create_Workflow", map[string]interface{}{"name": 123, "code": "1"}); err == nil {
+		t.Fatal("coerced non-string name")
+	}
+}
+
+func TestWorkflowResultSurvivesStatusPersistence(t *testing.T) {
+	useTempWorkflowsDir(t)
+	d, err := CreateWorkflow(CreateWorkflowParams{Name: "partial", Code: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir, _ := existingWorkflowDir(d.ID)
+	success := false
+	st := &WorkflowStatus{ID: d.ID, Status: "failed", TaskSuccess: &success, Result: []byte(`{"ok":false,"requested":10,"processed":2,"failed":8}`), Error: "discovery failed"}
+	if err := writeWorkflowStatus(dir, st); err != nil {
+		t.Fatal(err)
+	}
+	got, err := GetWorkflow(d.ID, false)
+	if err != nil || got.TaskSuccess == nil || *got.TaskSuccess || !resultHasFailedCount(got.Result, 8) {
+		t.Fatalf("got=%+v err=%v", got, err)
+	}
+	output, err := Get_Workflow_Status(d.ID)
+	if err != nil || !strings.Contains(output, `"failed": 8`) || !strings.Contains(output, "Task success reported by script: false") {
+		t.Fatalf("%s %v", output, err)
+	}
+	st.Status = "completed"
+	st.TaskSuccess = nil
+	st.Result = nil
+	if err := writeWorkflowStatus(dir, st); err != nil {
+		t.Fatal(err)
+	}
+	output, _ = Get_Workflow_Status(d.ID)
+	if !strings.Contains(output, "task success is unverified") {
+		t.Fatal(output)
+	}
+}
+
+func resultHasFailedCount(raw json.RawMessage, want int) bool {
+	var result struct {
+		Failed int `json:"failed"`
+	}
+	return json.Unmarshal(raw, &result) == nil && result.Failed == want
 }

@@ -84,3 +84,68 @@ await new Promise(r => setTimeout(r, 60000));
 		t.Fatal("env leaked")
 	}
 }
+
+func TestWorkflowE2EOutcomesAndDiagnostics(t *testing.T) {
+	root := os.Getenv("WORKFLOW_E2E_ROOT")
+	if os.Getenv("WORKFLOW_E2E") != "1" || root == "" {
+		t.Skip("set WORKFLOW_E2E=1 and WORKFLOW_E2E_ROOT to run")
+	}
+	wd, _ := os.Getwd()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	useTempWorkflowsDir(t)
+	t.Setenv("TS_RUNTIME_TOOLS", "web,math")
+	for _, tc := range []struct {
+		name, code, status, diagnostic string
+		success                        *bool
+	}{
+		{"failure", `return {ok:false, error:"SharePoint discovery failed", requested:5, processed:0, failed:5};`, "failed", "SharePoint discovery failed", boolPtr(false)},
+		{"partial", `return {ok:true, complete:false, processed:2, failed:3};`, "failed", "incomplete work", boolPtr(false)},
+		{"unknown", `return {ok:true, unknown:1};`, "failed", "incomplete work", boolPtr(false)},
+		{"cyclic", `const result: any = {ok:true}; result.self = result; return result;`, "failed", "JSON-serializable", boolPtr(false)},
+		{"throw", `throw new Error("Graph 503");`, "failed", "Graph 503", boolPtr(false)},
+		{"unverified", `console.log("as const remains literal");`, "completed", "", nil},
+		{"typed", "interface Result {ok:boolean; complete:boolean; verified:number}\nconst result: Result = {ok:true, complete:true, verified:math.sqrt(4)};\nreturn result;", "completed", "", boolPtr(true)},
+		{"parse", "console.log('must not run');\nconst broken = ;", "failed", "line 2, column 16", boolPtr(false)},
+		{"eof", "console.log('must not run');\nif (true) {", "failed", "line 2, column 12", boolPtr(false)},
+		{"policy", "console.log('must not run');\nprocess.exit(0);", "failed", "line 2, column 1", boolPtr(false)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d, err := CreateWorkflow(CreateWorkflowParams{Name: tc.name, Code: tc.code})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := RunWorkflow(d.ID, "manual"); err != nil {
+				t.Fatal(err)
+			}
+			if !waitFor(t, 30*time.Second, func() bool { return !IsWorkflowRunning(d.ID) }) {
+				_ = StopWorkflow(d.ID)
+				t.Fatal("did not finish")
+			}
+			got, err := GetWorkflow(d.ID, false)
+			if err != nil || got.Status != tc.status || (tc.diagnostic != "" && !strings.Contains(strings.ToLower(got.Error), strings.ToLower(tc.diagnostic))) {
+				t.Fatalf("got=%+v err=%v", got, err)
+			}
+			if (got.TaskSuccess == nil) != (tc.success == nil) || (tc.success != nil && *got.TaskSuccess != *tc.success) {
+				t.Fatalf("task success = %v", got.TaskSuccess)
+			}
+			logs, _ := ReadWorkflowLogs(d.ID, 0)
+			if strings.Contains(logs, "must not run") && strings.Contains(logs, "] must not run") {
+				t.Fatal("invalid code executed before compilation")
+			}
+			if tc.name == "failure" && (!resultHasFailedCount(got.Result, 5) || got.ExitCode == nil || *got.ExitCode == 0) {
+				t.Fatalf("failure result lost: %+v", got)
+			}
+			if tc.name == "parse" && (!strings.Contains(got.Error, "const broken = ;") || !strings.Contains(got.Error, d.ID)) {
+				t.Fatal(got.Error)
+			}
+			if tc.name == "unverified" && !strings.Contains(logs, "as const remains literal") {
+				t.Fatal("compiler corrupted string literal")
+			}
+		})
+	}
+}
+
+func boolPtr(value bool) *bool { return &value }
