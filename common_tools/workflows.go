@@ -201,10 +201,25 @@ func Unschedule_Workflow(workflow_id string) (string, error) {
 type workflowTools struct{ actor WorkflowActor }
 
 func (t workflowTools) authorize(id string) (*WorkflowMetadata, error) {
+	return t.authorizeWith(id, AuthorizeWorkflow)
+}
+
+func (t workflowTools) authorizeManage(id string) (*WorkflowMetadata, error) {
+	meta, err := AuthorizeWorkflow(id, t.actor)
+	if err != nil {
+		return t.authorize(id)
+	}
+	if !t.actor.CanManage(meta) {
+		return nil, fmt.Errorf("workflow '%s' is shared; only an admin can change it", id)
+	}
+	return meta, nil
+}
+
+func (t workflowTools) authorizeWith(id string, check func(string, WorkflowActor) (*WorkflowMetadata, error)) (*WorkflowMetadata, error) {
 	if id == "" {
 		return nil, fmt.Errorf("workflow_id cannot be empty")
 	}
-	meta, err := AuthorizeWorkflow(id, t.actor)
+	meta, err := check(id, t.actor)
 	if errors.Is(err, ErrWorkflowForbidden) {
 		// Do not reveal other users' workflows to the agent.
 		return nil, fmt.Errorf("workflow '%s' not found", id)
@@ -213,7 +228,7 @@ func (t workflowTools) authorize(id string) (*WorkflowMetadata, error) {
 }
 
 func (t workflowTools) edit(id, code, name string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	if code == "" && name == "" {
@@ -262,7 +277,7 @@ func getFrontendURL() string {
 }
 
 func (t workflowTools) run(id string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	pid, err := RunWorkflow(id, "agent")
@@ -322,7 +337,7 @@ func (t workflowTools) code(id string) (string, error) {
 }
 
 func (t workflowTools) patch(id, find, replace string, replaceAll bool) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	n, err := PatchWorkflowCode(id, find, replace, replaceAll)
@@ -387,7 +402,7 @@ func (t workflowTools) list() (string, error) {
 }
 
 func (t workflowTools) stop(id string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	if err := StopWorkflow(id); err != nil {
@@ -397,7 +412,7 @@ func (t workflowTools) stop(id string) (string, error) {
 }
 
 func (t workflowTools) delete(id string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	if err := DeleteWorkflow(id); err != nil {
@@ -407,7 +422,7 @@ func (t workflowTools) delete(id string) (string, error) {
 }
 
 func (t workflowTools) schedule(id, scheduleType, value string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	s, err := ScheduleWorkflow(id, scheduleType, value)
@@ -432,7 +447,7 @@ func (t workflowTools) schedule(id, scheduleType, value string) (string, error) 
 }
 
 func (t workflowTools) unschedule(id string) (string, error) {
-	if _, err := t.authorize(id); err != nil {
+	if _, err := t.authorizeManage(id); err != nil {
 		return "", err
 	}
 	if err := UnscheduleWorkflow(id); err != nil {

@@ -333,3 +333,20 @@ func TestWorkflowToolScopingHidesOtherUsers(t *testing.T) {
 		t.Fatal("non-workflow tool handled")
 	}
 }
+
+func TestWorkflowCanManageLegacyIsAdminOnly(t *testing.T) {
+	legacy := &WorkflowMetadata{}
+	owned := &WorkflowMetadata{OwnerUID: "u1"}
+	if (WorkflowActor{UID: "u2"}).CanManage(legacy) {
+		t.Fatal("non-admins must not change ownerless workflows")
+	}
+	if !(WorkflowActor{UID: "u2", IsAdmin: true}).CanManage(legacy) {
+		t.Fatal("admins can change ownerless workflows")
+	}
+	if !(WorkflowActor{UID: "u1"}).CanManage(owned) {
+		t.Fatal("owners can change their workflows")
+	}
+	if (WorkflowActor{UID: "u2"}).CanManage(owned) {
+		t.Fatal("other users must not change someone else's workflow")
+	}
+}

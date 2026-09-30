@@ -267,7 +267,20 @@ func saveWorkflowMetadata(dir string, meta *WorkflowMetadata) error {
 	return writeJSONAtomic(filepath.Join(dir, "metadata.json"), meta)
 }
 
-// AuthorizeWorkflow checks that the workflow exists and that the actor may access it.
+// CanManage reports whether the actor may change a workflow (edit, run, stop,
+// schedule, delete). Legacy workflows without an owner are visible to everyone
+// but only admins may change them, since their schedules run for all users.
+func (a WorkflowActor) CanManage(m *WorkflowMetadata) bool {
+	if a.IsAdmin || m == nil {
+		return true
+	}
+	if m.OwnerUID == "" && m.OwnerEmail == "" {
+		return false
+	}
+	return a.CanAccess(m)
+}
+
+// AuthorizeWorkflow checks that the workflow exists and that the actor may view it.
 func AuthorizeWorkflow(id string, actor WorkflowActor) (*WorkflowMetadata, error) {
 	meta, err := LoadWorkflowMetadata(id)
 	if err != nil {
@@ -275,6 +288,18 @@ func AuthorizeWorkflow(id string, actor WorkflowActor) (*WorkflowMetadata, error
 	}
 	if !actor.CanAccess(meta) {
 		return nil, fmt.Errorf("%w: '%s'", ErrWorkflowForbidden, id)
+	}
+	return meta, nil
+}
+
+// AuthorizeWorkflowManage checks that the workflow exists and that the actor may change it.
+func AuthorizeWorkflowManage(id string, actor WorkflowActor) (*WorkflowMetadata, error) {
+	meta, err := AuthorizeWorkflow(id, actor)
+	if err != nil {
+		return nil, err
+	}
+	if !actor.CanManage(meta) {
+		return nil, fmt.Errorf("%w: '%s' is a shared workflow; only an admin can change it", ErrWorkflowForbidden, id)
 	}
 	return meta, nil
 }
@@ -604,6 +629,7 @@ func ListWorkflows(actor WorkflowActor) ([]WorkflowDetails, error) {
 		if err != nil {
 			continue
 		}
+		d.CanManage = actor.CanManage(meta)
 		out = append(out, *d)
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].CreatedAt > out[j].CreatedAt })
