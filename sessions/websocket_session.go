@@ -772,6 +772,9 @@ func (as *AgentSession) executeTool(fc functionCallInfo) (string, error) {
 			as.Logger.Printf("Execute_TypeScript code (ID: %s):\n%s", fc.ID, code)
 		}
 		result, err = as.executeTypeScriptWithTracing(fc)
+	} else if as.workflowToolEnabled(fc.Name) {
+		// Workflow tools are scoped to the session's user (ownership + isolation).
+		result, _, err = common_tools.ExecuteWorkflowToolAs(common_tools.WorkflowActor{UID: as.UserID}, fc.Name, fc.Args)
 	} else if as.FrontendToolExecutor != nil && as.FrontendToolExecutor.IsFrontendTool(fc.Name) {
 		// Check FrontendToolExecutor if it exists and this is a frontend tool
 		result, err = as.FrontendToolExecutor.ExecuteFrontendTool(fc.Name, fc.Args)
@@ -1150,6 +1153,17 @@ func getToolEndLabel(toolName string, args map[string]interface{}) string {
 		readable := strings.ReplaceAll(toolName, "_", " ")
 		return fmt.Sprintf("Ran %s", readable)
 	}
+}
+
+// workflowToolEnabled reports whether fc is a workflow tool that should be run
+// scoped to the session user. Requires a known user and that the agent actually
+// exposes the tool (so disabled tools still fail as "not found").
+func (as *AgentSession) workflowToolEnabled(name string) bool {
+	if as.UserID == "" || !common_tools.IsWorkflowTool(name) {
+		return false
+	}
+	checker, ok := as.Agent.(interface{ HasTool(name string) bool })
+	return ok && checker.HasTool(name)
 }
 
 // executeTypeScriptWithTracing executes TypeScript code with real-time trace streaming
