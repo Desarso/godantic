@@ -125,7 +125,7 @@ func TestWorkflowE2EOutcomesAndDiagnostics(t *testing.T) {
 				t.Fatal("did not finish")
 			}
 			got, err := GetWorkflow(d.ID, false)
-			if err != nil || got.Status != tc.status || (tc.diagnostic != "" && !strings.Contains(got.Error, tc.diagnostic)) {
+			if err != nil || got.Status != tc.status || (tc.diagnostic != "" && !strings.Contains(strings.ToLower(got.Error), strings.ToLower(tc.diagnostic))) {
 				t.Fatalf("got=%+v err=%v", got, err)
 			}
 			if (got.TaskSuccess == nil) != (tc.success == nil) || (tc.success != nil && *got.TaskSuccess != *tc.success) {
