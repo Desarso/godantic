@@ -75,15 +75,17 @@ func ValidateWorkflowID(id string) error {
 
 // WorkflowStatus represents the status of a workflow (status.json)
 type WorkflowStatus struct {
-	ID          string `json:"id"`
-	Status      string `json:"status"` // "pending", "running", "completed", "failed"
-	StartedAt   string `json:"started_at,omitempty"`
-	CompletedAt string `json:"completed_at,omitempty"`
-	Error       string `json:"error,omitempty"`
-	PID         int    `json:"pid,omitempty"`
-	PGID        int    `json:"pgid,omitempty"`
-	ExitCode    *int   `json:"exit_code,omitempty"`
-	Trigger     string `json:"trigger,omitempty"` // "manual", "agent", "schedule"
+	Result      json.RawMessage `json:"result,omitempty"`
+	TaskSuccess *bool           `json:"task_success,omitempty"`
+	ID          string          `json:"id"`
+	Status      string          `json:"status"` // "pending", "running", "completed", "failed"
+	StartedAt   string          `json:"started_at,omitempty"`
+	CompletedAt string          `json:"completed_at,omitempty"`
+	Error       string          `json:"error,omitempty"`
+	PID         int             `json:"pid,omitempty"`
+	PGID        int             `json:"pgid,omitempty"`
+	ExitCode    *int            `json:"exit_code,omitempty"`
+	Trigger     string          `json:"trigger,omitempty"` // "manual", "agent", "schedule"
 }
 
 // WorkflowSchedule represents scheduling configuration for a workflow (schedule.json)
@@ -125,6 +127,8 @@ type WorkflowInfo struct {
 
 // WorkflowDetails is the aggregated view of a workflow used by the REST API.
 type WorkflowDetails struct {
+	Result                json.RawMessage   `json:"result,omitempty"`
+	TaskSuccess           *bool             `json:"task_success,omitempty"`
 	ID                    string            `json:"id"`
 	Name                  string            `json:"name"`
 	Description           string            `json:"description,omitempty"`
@@ -587,6 +591,8 @@ func GetWorkflow(id string, includeCode bool) (*WorkflowDetails, error) {
 		CanManage:             true,
 	}
 	if st := readWorkflowStatus(dir); st != nil {
+		d.Result = st.Result
+		d.TaskSuccess = st.TaskSuccess
 		d.Status = st.Status
 		d.StartedAt = st.StartedAt
 		d.CompletedAt = st.CompletedAt

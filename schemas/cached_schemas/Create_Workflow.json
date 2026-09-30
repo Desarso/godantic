@@ -1,14 +1,16 @@
 {
   "name": "Create_Workflow",
-  "description": "Create_Workflow creates a new workflow with TypeScript code that can be run later\nReturns the workflow ID and a URL that can be used to view the workflow\nThe workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills\nUnlike Execute_TypeScript, workflows run in the background with a 30 minute default timeout\nIMPORTANT: Always present the returned URL to the user as a clickable markdown link, e.g. [View Workflow](url)",
+  "description": "Create_Workflow creates a new workflow with TypeScript code that can be run later\nReturns the workflow ID and a URL that can be used to view the workflow\nThe workflow code has access to the same tools as Execute_TypeScript: web, tavily, math, graph, skills\nUnlike Execute_TypeScript, workflows run in the background with a 30 minute default timeout\nIMPORTANT: Always present the returned URL to the user as a clickable markdown link, e.g. [View Workflow](url)\nReturn a structured result from the script: {ok, complete, requested, processed, verified, skipped, failed, unknown}. Return {ok:false,error:\"reason\"} or throw on failure. Failed or unknown counts and complete:false mark the workflow failed. A normal return alone only proves execution finished. Await all work before returning. URLs may be relative to the current deployment.",
   "parameters": {
     "type": "object",
     "properties": {
       "code": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       },
       "name": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       }
     },
     "required": [

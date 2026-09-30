@@ -1,11 +1,12 @@
 {
   "name": "Get_Workflow_Status",
-  "description": "Get_Workflow_Status returns the current status of a workflow\nStatus can be: \"pending\", \"running\", \"completed\", or \"failed\"",
+  "description": "Get_Workflow_Status returns the current status of a workflow\nStatus can be: \"pending\", \"running\", \"completed\", or \"failed\"\nReturns the persisted script result and task_success when reported. completed alone means execution finished, not verified business success. Inspect results and logs before claiming the requested work succeeded. If the ID is missing, use List_Workflows and select the matching returned ID.",
   "parameters": {
     "type": "object",
     "properties": {
       "workflow_id": {
-        "type": "string"
+        "type": "string",
+        "minLength": 1
       }
     },
     "required": [
