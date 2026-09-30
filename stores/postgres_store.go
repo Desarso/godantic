@@ -273,3 +273,11 @@ func (s *PostgresStore) ListConversationsForUser(userID string) ([]ConversationI
 
 	return result, nil
 }
+
+// DeleteConversation permanently removes a conversation and its messages.
+func (s *PostgresStore) DeleteConversation(convoID string) error {
+	if s.db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+	return deleteConversationTx(s.db, convoID)
+}

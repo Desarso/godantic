@@ -366,6 +366,17 @@ func (agent *Agent) Run_Stream(request models.Model_Request, conversationHistory
 	return agent.Model.Stream_Model_Request(request, agent.Tools, conversationHistory)
 }
 
+// HasTool reports whether the agent exposes a tool with the given name.
+func (agent *Agent) HasTool(name string) bool {
+	name = strings.TrimSpace(name)
+	for _, tool := range agent.Tools {
+		if tool.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 // ExecuteTool executes a tool dynamically by name and arguments
 func (agent *Agent) ExecuteTool(functionName string, functionCallArgs map[string]interface{}, sessionID string) (string, error) {
 	var toolResultJSON string

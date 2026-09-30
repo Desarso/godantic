@@ -274,3 +274,11 @@ func (s *SQLiteStore) ListConversationsForUser(userID string) ([]ConversationInf
 
 	return result, nil
 }
+
+// DeleteConversation permanently removes a conversation and its messages.
+func (s *SQLiteStore) DeleteConversation(convoID string) error {
+	if s.db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+	return deleteConversationTx(s.db, convoID)
+}

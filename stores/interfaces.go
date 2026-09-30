@@ -81,3 +81,19 @@ func (c *StoreConfig) WithOption(key, value string) *StoreConfig {
 	c.Options[key] = value
 	return c
 }
+
+// ConversationDeleter is implemented by stores that can permanently delete a
+// conversation and all of its messages.
+type ConversationDeleter interface {
+	DeleteConversation(convoID string) error
+}
+
+// deleteConversationTx hard-deletes a conversation's messages and metadata.
+func deleteConversationTx(db *gorm.DB, convoID string) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().Where("conversation_id = ?", convoID).Delete(&Message{}).Error; err != nil {
+			return err
+		}
+		return tx.Unscoped().Where("conversation_id = ?", convoID).Delete(&Conversation{}).Error
+	})
+}

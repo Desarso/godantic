@@ -1,6 +1,6 @@
 {
   "name": "Delete_Workflow",
-  "description": "Delete_Workflow deletes a workflow and all its data\nCannot delete a running workflow - stop it first",
+  "description": "Delete_Workflow deletes a workflow and all its data\nA running workflow is stopped and any schedule is removed first",
   "parameters": {
     "type": "object",
     "properties": {
