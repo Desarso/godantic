@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -76,22 +77,31 @@ func findTypeScriptRunner() (typescriptRunner, error) {
 		return typescriptRunner{}, fmt.Errorf("TypeScript runtime directory not found")
 	}
 
-	if pnpmPath, err := exec.LookPath("pnpm"); err == nil {
-		return typescriptRunner{command: pnpmPath, args: []string{"exec", "tsx"}, dir: runtimeDir}, nil
+	// Invoke the installed CLI directly to avoid package-manager startup noise.
+	cli := filepath.Join(runtimeDir, "node_modules", "tsx", "dist", "cli.mjs")
+	if _, err := os.Stat(cli); err != nil {
+		return typescriptRunner{}, fmt.Errorf("TypeScript runner not installed; run pnpm install in helpers/typescript_runtime: %w", err)
 	}
-
-	return typescriptRunner{}, fmt.Errorf("pnpm executable not found. Please install pnpm and run `pnpm install` in helpers/typescript_runtime")
+	cli, err := filepath.Abs(cli)
+	if err != nil {
+		return typescriptRunner{}, err
+	}
+	node, err := exec.LookPath("node")
+	if err != nil {
+		return typescriptRunner{}, fmt.Errorf("Node.js executable not found: %w", err)
+	}
+	return typescriptRunner{command: node, args: []string{cli}, dir: runtimeDir}, nil
 }
 
-// Execute_TypeScript executes TypeScript code in a sandboxed environment using pnpm/tsx
-// The code is validated and executed by a separate TypeScript file with built-in safety checks
-// Built-in libraries: web (HTTP requests), tavily (search), math (mathjs library), graph (Microsoft Graph API), skills (manage skill files)
-// Skills API: skills.list(), skills.read(name), skills.create(name, content), skills.edit(name, old, new), skills.remove(name)
-// Safety rules:
-// - 60 second execution timeout
-// - No direct file system access (use skills API for skill files)
-// - No process manipulation
-// - Input validation in TypeScript executor
+// Execute_TypeScript executes a self-contained TypeScript snippet using Node.js/tsx.
+// Configured API namespaces are available through tools and their own names; use console.log for output.
+// Variables DO NOT persist between calls. Declare or fetch all inputs in this call, or load saved workspace data.
+// Maximum code length: 10,000 UTF-16 code units. Fetch inventories instead of embedding large arrays; store bulk data in workspace files.
+// Hard timeout: 60 seconds. Use background automations for bulk scans, provisioning polls, and long jobs, with bounded concurrency and durable checkpoints.
+// A timeout may occur after mutations succeeded. Inspect progress and verify existing state before retrying writes.
+// Await async entry points and API calls. Top-level assistant tools such as Confirm_With_User must be invoked separately, outside this snippet.
+// TypeScript syntax is compiled before execution. Imports/exports are not supported inside snippets; use the configured API namespaces.
+// Direct filesystem access and process manipulation are prohibited; use the workspace/skills APIs.
 func Execute_TypeScript(code string) (string, error) {
 	return Execute_TypeScriptWithTracing(code, nil)
 }
@@ -155,6 +165,7 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 
 	// For stderr, we need to parse trace events and frontend action requests
 	var stderr bytes.Buffer
+	var progress bytes.Buffer
 	var stderrPipe io.ReadCloser
 
 	stderrPipe, err = cmd.StderrPipe()
@@ -171,7 +182,7 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 	stderrDone := make(chan struct{})
 	go func() {
 		defer close(stderrDone)
-		processStderrWithFrontendActions(stderrPipe, traceEmitter, feHandler, stdinPipe, &stderr)
+		processStderrWithFrontendActions(stderrPipe, traceEmitter, feHandler, stdinPipe, &stderr, &progress)
 	}()
 
 	// Wait for command to finish
@@ -180,7 +191,7 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
-		return "", fmt.Errorf("execution timeout: code took longer than 60 seconds")
+		return "", fmt.Errorf("execution timeout: code took longer than 60 seconds. Use background automations with bounded concurrency and durable checkpoints for bulk work or provisioning polls. Mutations may already have succeeded; verify existing state before retrying.\nPartial console output:\n%s", progress.String())
 	}
 
 	// Parse the JSON response
@@ -191,7 +202,8 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 	// The executor outputs JSON to stdout regardless of success/failure
 	if stdoutStr != "" {
 		var result TypeScriptExecutionResult
-		if jsonErr := json.Unmarshal([]byte(stdoutStr), &result); jsonErr == nil {
+		var fields map[string]json.RawMessage
+		if jsonErr := json.Unmarshal([]byte(stdoutStr), &result); jsonErr == nil && json.Unmarshal([]byte(stdoutStr), &fields) == nil && fields["success"] != nil && string(fields["success"]) != "null" {
 			// Successfully parsed JSON from stdout
 			if !result.Success {
 				// Execution failed, return the error message from JSON
@@ -202,7 +214,10 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 				}
 				return "", fmt.Errorf("%s", errMsg)
 			}
-			// Execution succeeded
+			// Execution succeeded, but an abnormal child exit remains a failure.
+			if err != nil {
+				return "", executorProtocolError(err, stdoutStr, stderrStr)
+			}
 			output := result.Output
 			if output == "" {
 				output = "(No output)"
@@ -211,45 +226,39 @@ func Execute_TypeScriptWithTracingAndEnv(code string, traceEmitter TraceEmitter,
 		}
 	}
 
-	// If stdout parsing failed or stdout is empty, check stderr
-	if stderrStr != "" {
-		// Try to parse stderr as JSON
-		var result TypeScriptExecutionResult
-		if jsonErr := json.Unmarshal([]byte(stderrStr), &result); jsonErr == nil {
-			if !result.Success {
-				return "", fmt.Errorf("%s", result.Error)
-			}
+	return "", executorProtocolError(err, stdoutStr, stderrStr)
+}
+
+// Keep warnings distinct from the process failure and never accept raw stdout
+// as a successful result when the executor protocol is absent.
+func executorProtocolError(exitErr error, stdout, stderr string) error {
+	status := "exit status 0"
+	if exitErr != nil {
+		status = exitErr.Error()
+	}
+	bounded := func(s string) string {
+		const limit = 8000
+		if len(s) > limit {
+			return s[:limit] + "\n... (truncated)"
 		}
-		return "", fmt.Errorf("execution error: %s", stderrStr)
-	}
-
-	// If both stdout and stderr are empty or unparseable, return generic error
-	if err != nil {
-		wd, _ := os.Getwd()
-		runnerCmd := strings.Join(args, " ")
-		if stdoutStr != "" {
-			return "", fmt.Errorf("execution failed: %v\ncommand: %s %s\nworking_dir: %s/%s\n\nstdout:\n%s", err, runner.command, runnerCmd, wd, runner.dir, stdoutStr)
+		if s == "" {
+			return "(empty)"
 		}
-		return "", fmt.Errorf("execution failed: %v\ncommand: %s %s\nworking_dir: %s/%s", err, runner.command, runnerCmd, wd, runner.dir)
+		return s
 	}
-
-	// Fallback: return raw stdout if it exists but wasn't JSON
-	if stdoutStr != "" {
-		return stdoutStr, nil
-	}
-
-	return "", fmt.Errorf("execution failed: no output received")
+	return fmt.Errorf("TypeScript executor returned missing or malformed JSON (%s). Check runtime installation/startup diagnostics.\nstdout:\n%s\nstderr (may include warnings):\n%s", status, bounded(stdout), bounded(stderr))
 }
 
 // processStderrWithFrontendActions reads stderr line by line, extracts trace events
 // and frontend action requests, sends responses back via stdin
-func processStderrWithFrontendActions(pipe io.ReadCloser, traceEmitter TraceEmitter, feHandler FrontendActionHandler, stdinPipe io.WriteCloser, nonTraceOutput *bytes.Buffer) {
+func processStderrWithFrontendActions(pipe io.ReadCloser, traceEmitter TraceEmitter, feHandler FrontendActionHandler, stdinPipe io.WriteCloser, nonTraceOutput *bytes.Buffer, progress ...*bytes.Buffer) {
 	defer pipe.Close()
 	if stdinPipe != nil {
 		defer stdinPipe.Close()
 	}
 
 	scanner := bufio.NewScanner(pipe)
+	scanner.Buffer(make([]byte, 4096), 1024*1024)
 	const tracePrefix = "__TRACE__"
 	const frontendActionRequestPrefix = "__FRONTEND_ACTION_REQUEST__"
 
@@ -257,7 +266,16 @@ func processStderrWithFrontendActions(pipe io.ReadCloser, traceEmitter TraceEmit
 		line := scanner.Text()
 
 		// Check if this is a trace event
-		if strings.HasPrefix(line, tracePrefix) {
+		if strings.HasPrefix(line, "__EXECUTION_OUTPUT__") {
+			var output string
+			if json.Unmarshal([]byte(strings.TrimPrefix(line, "__EXECUTION_OUTPUT__")), &output) == nil && len(progress) > 0 && progress[0].Len() < 50000 {
+				remaining := 50000 - progress[0].Len()
+				if len(output) > remaining {
+					output = output[:remaining]
+				}
+				progress[0].WriteString(output + "\n")
+			}
+		} else if strings.HasPrefix(line, tracePrefix) {
 			// Parse and emit the trace
 			jsonStr := strings.TrimPrefix(line, tracePrefix)
 			var trace TraceEvent
