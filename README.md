@@ -219,6 +219,8 @@ if traceStore != nil {
 err := session.RunInteraction(req)
 ```
 
+Tool approval currently goes through `Agent.ApproveTool`, whose default implementation (`Tool_Approver` in `tool_approver.go`) auto-approves every tool call; a real approval policy is not implemented yet.
+
 `memoryManager` can be nil. If provided, it must implement the session memory interface in `sessions/types.go`.
 
 `AgentSession` also exposes optional hooks for observability: `ToolResultHook` runs after every tool call with a structured success/error classification, and `ErrorHook` runs when the session reports a provider or transport error to the client. Hook panics are recovered so they cannot break the session.
