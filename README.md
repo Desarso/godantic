@@ -36,6 +36,8 @@ Most assistant backends end up solving the same problems: provider adapters, fun
 - [Production](https://desarso.github.io/godantic/production/)
 - [Versioning](https://desarso.github.io/godantic/versioning/)
 
+The docs site is an Astro Starlight project in [`docs/`](docs/) (pages in `docs/src/content/docs`). It is deployed to GitHub Pages by `.github/workflows/deploy-docs.yml` on pushes to `main`. Run it locally with `make docs-dev`.
+
 ## Releases
 
 The version is stored in `VERSION`. Release helpers live in the root `Makefile`:
@@ -217,7 +219,19 @@ if traceStore != nil {
 err := session.RunInteraction(req)
 ```
 
+Tool approval currently goes through `Agent.ApproveTool`, whose default implementation (`Tool_Approver` in `tool_approver.go`) auto-approves every tool call; a real approval policy is not implemented yet.
+
 `memoryManager` can be nil. If provided, it must implement the session memory interface in `sessions/types.go`.
+
+`AgentSession` also exposes optional hooks for observability: `ToolResultHook` runs after every tool call with a structured success/error classification, and `ErrorHook` runs when the session reports a provider or transport error to the client. Hook panics are recovered so they cannot break the session.
+
+```go
+session.ToolResultHook = func(ev godantic.ToolResultEvent) {
+    if ev.IsError {
+        log.Printf("tool %s failed: %s", ev.ToolName, ev.ErrorMessage)
+    }
+}
+```
 
 ## Stores
 
@@ -233,7 +247,7 @@ PostgreSQL is available by DSN or config:
 store, err := stores.NewPostgresStoreSimple("host=localhost user=app password=secret dbname=chat port=5432 sslmode=disable")
 ```
 
-You can provide your own persistence by implementing `stores.MessageStore`.
+You can provide your own persistence by implementing `stores.MessageStore`. The SQLite and PostgreSQL stores also implement `stores.ConversationDeleter` for hard-deleting a conversation and its messages. See [`stores/README.md`](stores/README.md) for store configuration and the table schema.
 
 ## Tools
 

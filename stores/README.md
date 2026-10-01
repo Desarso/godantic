@@ -13,7 +13,7 @@ The godantic stores package provides a flexible interface for storing chat messa
 ### Using Default SQLite Store
 
 ```go
-import "github.com/desarso/NCA_Assistant/godantic"
+import "github.com/Desarso/godantic"
 
 // Create config with default SQLite store (chat_history.sqlite)
 config := godantic.NewWSConfig()
@@ -53,7 +53,7 @@ config := godantic.NewWSConfig().WithStore(store)
 ### Using Store Configuration
 
 ```go
-import "github.com/desarso/NCA_Assistant/godantic/stores"
+import "github.com/Desarso/godantic/stores"
 
 // SQLite configuration
 sqliteConfig := stores.NewStoreConfig("sqlite", "chat_history.sqlite")
@@ -105,19 +105,19 @@ export DB_TYPE=postgres
 export DB_CONNECTION="host=localhost user=username password=password dbname=chatdb port=5432 sslmode=disable"
 ```
 
-## Complete WebSocket Controller Setup
+## Wiring a Store Into an Agent
 
 ```go
-package routes
+package main
 
 import (
-    "github.com/desarso/NCA_Assistant/controllers"
-    "github.com/desarso/NCA_Assistant/godantic"
-    "github.com/desarso/NCA_Assistant/godantic/common_tools"
-    "github.com/gin-gonic/gin"
+    "log"
+
+    "github.com/Desarso/godantic"
+    "github.com/Desarso/godantic/common_tools"
 )
 
-func createWSController() *controllers.WS_controllers {
+func newAgentFromConfig() (godantic.Agent, *godantic.WSConfig) {
     config := godantic.NewWSConfig().
         WithModelName("gemini-2.0-flash").
         WithTools([]interface{}{
@@ -125,10 +125,17 @@ func createWSController() *controllers.WS_controllers {
             common_tools.Brave_Search,
         }).
         WithSQLiteStore("chat_history.sqlite") // or WithPostgresStore(...)
-    
-    return controllers.NewWSControllers(config)
+
+    tools, err := godantic.Create_Tools(config.Tools)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    return godantic.Create_Agent_From_Config(config, tools), config
 }
 ```
+
+Pass `config.Store` to `godantic.NewHTTPSession` or `godantic.NewAgentSession` to persist conversation history.
 
 ## Database Schema
 
@@ -140,6 +147,7 @@ All stores automatically create the required tables:
 - `updated_at` - Last update timestamp
 - `conversation_id` - Unique conversation identifier
 - `user_id` - User who owns the conversation
+- `title` - Optional conversation title
 - `message_count` - Number of messages in conversation
 
 ### Messages Table
@@ -199,6 +207,6 @@ if err != nil {
 }
 
 if err := store.Ping(); err != nil {
-    log.Error("Database connection failed:", err)
+    log.Println("Database connection failed:", err)
 }
 ``` 
