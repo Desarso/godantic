@@ -28,6 +28,11 @@ import (
 // It is a var so tests can point it at a temp dir.
 var workflowsDir = "data/workflows"
 
+// WorkflowEnvHook, when set by the host application, returns extra environment
+// variables for a workflow run (e.g. a short-lived API token scoped to the
+// workflow owner). It cannot override the reserved WORKFLOW_* / AGENT_* keys.
+var WorkflowEnvHook func(workflowID, ownerUID string, timeout time.Duration) map[string]string
+
 // SetWorkflowsDir overrides where workflow data lives (e.g. a persistent data
 // volume). Call once at startup before any workflow is created or scheduled.
 func SetWorkflowsDir(dir string) {
@@ -809,6 +814,13 @@ func RunWorkflow(id string, trigger string) (int, error) {
 		"WORKFLOW_MAX_LOG_BYTES":   strconv.Itoa(workflowMaxLogBytes),
 		"AGENT_CONVERSATION_ID":    "workflow-" + id,
 		"AGENT_USER_WORKSPACE_ID":  meta.OwnerUID,
+	}
+	if WorkflowEnvHook != nil {
+		for k, v := range WorkflowEnvHook(id, meta.OwnerUID, timeout) {
+			if _, reserved := extraEnv[k]; !reserved {
+				extraEnv[k] = v
+			}
+		}
 	}
 
 	args := append(append([]string{}, runner.args...), workflowExecutorScript, id, codePath)

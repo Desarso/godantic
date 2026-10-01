@@ -1,0 +1,18 @@
+{
+  "name": "Read_Artifact",
+  "description": "Read_Artifact returns the content of an artifact in this conversation (latest version by default). Use it before editing when the artifact may have changed (for example after the user edited it) or when its content is no longer in context.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "artifact_id": {
+        "type": "string",
+        "description": "The artifact id."
+      },
+      "version": {
+        "type": "integer",
+        "description": "Optional version number; defaults to the latest version."
+      }
+    },
+    "required": ["artifact_id"]
+  }
+}
