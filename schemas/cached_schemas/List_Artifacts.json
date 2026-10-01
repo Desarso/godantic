@@ -1,0 +1,8 @@
+{
+  "name": "List_Artifacts",
+  "description": "List_Artifacts lists the artifacts in this conversation (id, title, kind, latest version, last update).",
+  "parameters": {
+    "type": "object",
+    "properties": {}
+  }
+}

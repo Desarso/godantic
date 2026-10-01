@@ -1,0 +1,38 @@
+{
+  "name": "Update_Artifact",
+  "description": "Update_Artifact creates a new version of an existing artifact. Provide either `edits` (preferred for small changes: exact find/replace pairs, each `find` must match exactly one place in the current version) or `content` (a full rewrite, for large changes).\nIf an edit fails, call Read_Artifact to get the current text (the user may have edited it) and retry, or send the full content.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "artifact_id": {
+        "type": "string",
+        "description": "The artifact id returned by Create_Artifact or List_Artifacts."
+      },
+      "edits": {
+        "type": "array",
+        "description": "Ordered exact find/replace edits applied to the current version. Include enough surrounding text in `find` to make it unique.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "find": { "type": "string", "description": "Exact text to find (must occur exactly once)." },
+            "replace": { "type": "string", "description": "Replacement text (may be empty to delete)." }
+          },
+          "required": ["find", "replace"]
+        }
+      },
+      "content": {
+        "type": "string",
+        "description": "Full replacement content. Use instead of `edits` for large rewrites."
+      },
+      "title": {
+        "type": "string",
+        "description": "Optional new title."
+      },
+      "summary": {
+        "type": "string",
+        "description": "Optional short description of the change, e.g. 'Added Q3 column'."
+      }
+    },
+    "required": ["artifact_id"]
+  }
+}

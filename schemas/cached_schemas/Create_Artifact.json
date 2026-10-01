@@ -1,0 +1,27 @@
+{
+  "name": "Create_Artifact",
+  "description": "Create_Artifact saves a substantial deliverable (report, document, HTML page, reusable table, chart, diagram, or code file) as a versioned artifact in this conversation and opens it in the user's side panel.\nUse it for content longer than ~20 lines or anything the user will reuse, copy, download, or share. Keep your chat reply short and refer to the artifact instead of repeating its content.\nTo change an existing artifact use Update_Artifact; do not create a duplicate. Never put secrets or credentials in an artifact.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "kind": {
+        "type": "string",
+        "enum": ["markdown", "html", "code", "table", "chart", "svg", "mermaid"],
+        "description": "markdown: reports and documents (default choice). html: a complete self-contained HTML page (inline CSS/JS; CDN scripts only from cdn.jsdelivr.net; no network calls). code: a source file (set language). table: CSV with a header row, or a markdown pipe table. chart: JSON {\"type\":\"bar|line|pie\",\"title\"?,\"labels\":[...],\"series\":[{\"name\":\"...\",\"data\":[numbers]}]}. svg: a standalone <svg> document. mermaid: Mermaid diagram source."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short descriptive title (max ~80 chars), e.g. 'Q3 licence usage report'."
+      },
+      "content": {
+        "type": "string",
+        "description": "The full content of the artifact (max 2 MB)."
+      },
+      "language": {
+        "type": "string",
+        "description": "Only for kind=code: the language, e.g. 'typescript', 'python', 'powershell', 'sql'."
+      }
+    },
+    "required": ["kind", "title", "content"]
+  }
+}
