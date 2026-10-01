@@ -1059,7 +1059,7 @@ func getToolCategory(toolName string) string {
 		return "image"
 	case "List_Skill_Files", "Read_Skill_File", "Edit_Skill_File", "Create_Skill_File", "Delete_Skill_File":
 		return "skills"
-	case "Browser_Alert", "Browser_Prompt", "Browser_Navigate", "Sandbox_Run", "Confirm_With_User":
+	case "Browser_Alert", "Browser_Prompt", "Browser_Navigate", "Sandbox_Run", "Confirm_With_User", "Render_UI":
 		return "browser"
 	default:
 		if strings.Contains(toolName, "Workflow") {
@@ -1102,6 +1102,11 @@ func getToolStartLabel(toolName string, args map[string]interface{}) string {
 		return "Navigating"
 	case "Confirm_With_User":
 		return "Waiting for confirmation"
+	case "Render_UI":
+		if mode, _ := args["mode"].(string); mode == "display" {
+			return "Showing interactive view"
+		}
+		return "Waiting for your input"
 	default:
 		// Convert tool name to readable format
 		readable := strings.ReplaceAll(toolName, "_", " ")
@@ -1171,6 +1176,11 @@ func getToolEndLabel(toolName string, args map[string]interface{}) string {
 		}
 		return "Navigated"
 	case "Confirm_With_User":
+		return "User responded"
+	case "Render_UI":
+		if mode, _ := args["mode"].(string); mode == "display" {
+			return "Showed interactive view"
+		}
 		return "User responded"
 	default:
 		readable := strings.ReplaceAll(toolName, "_", " ")

@@ -1,0 +1,27 @@
+{
+  "name": "Render_UI",
+  "description": "Render_UI shows an interactive UI card inline in the chat, built from a declarative JSON spec (no code). Use it for choosing among many items (checkbox table), multi-field input (forms with selects), reviewing a bulk change with per-row toggles, approve/deny steps, or a small dashboard (stat tiles, table, chart). Prefer plain text for simple answers or a single yes/no; never ask the same thing in text and UI.\nmode \"await\": the turn pauses until the user submits or cancels; returns {status:\"submitted\"|\"cancelled\", action, values:{field name: value, table name: [row keys]}, selected_rows:[...], row?}. Use it whenever the next step depends on the user's choice.\nmode \"display\": shown inline and returns {status:\"displayed\"} immediately; later button clicks arrive as a user message containing a NCA_UI_EVENT block.\nInvalid specs return {status:\"invalid_spec\", errors}; fix and retry. Read json_ui.md for the component catalog and examples.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": ["await", "display"],
+        "description": "await = block until the user submits/cancels (input, selection, approval); display = show and return immediately (dashboards, summaries with optional follow-up buttons)."
+      },
+      "title": {
+        "type": "string",
+        "description": "Short card title, e.g. 'Create user' or 'Remove licenses from 3 users'."
+      },
+      "submit_label": {
+        "type": "string",
+        "description": "Label of the auto-added submit button (await mode, used only when the spec has no Button). Defaults to 'Submit'."
+      },
+      "spec": {
+        "type": "object",
+        "description": "UI spec: {\"body\": [component, ...], \"description\"?: string, \"data\"?: {fieldName: initialValue}, \"smart_fill\"?: boolean}. Every component is an object with \"type\". Layout: Stack|Row|Grid{columns}|Card{title,description}, all with children[]; Divider. Display: Heading{text,level}, Text{text (markdown-lite **bold** `code`), tone}, Badge{text,tone}, Alert{tone:info|success|warning|danger,title,text}, KeyValue{items:[{label,value}]}, StatTile{label,value,delta,trend:up|down|flat,tone}, Progress{label,value,max}, Chart{kind:bar|line|pie,labels[],series:[{name,values[]}],unit}. Data: Table{name,columns:[{key,label,kind?:text|number|badge|date|email,align?}],rows:[{...}],row_key (default id),selectable:none|single|multi,default_selected[],row_actions:[{id,label,variant}],searchable}. Inputs (all need name,label; optional required,help,default,disabled): TextInput{input_type:text|email|url|tel,placeholder,pattern}, TextArea{rows,check?: natural-language requirement}, NumberInput{min,max,step}, DatePicker{min,max}, Select|RadioGroup|MultiSelect{options:[{value,label,description}] or strings, searchable}, Checkbox, Switch. Actions: Button{label,action,variant:primary|secondary|danger|ghost,confirm?,requires_selection?:tableName}, ButtonGroup{buttons:[...]}. action \"cancel\" cancels without validation."
+      }
+    },
+    "required": ["mode", "spec"]
+  }
+}
